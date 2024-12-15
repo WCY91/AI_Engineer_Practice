@@ -1,0 +1,8 @@
+{
+    "python.analysis.autoImportCompletions": false,
+    "python.REPL.enableREPLSmartSend": false,
+    "editor.acceptSuggestionOnCommitCharacter": false,
+    "code-runner.executorMap": {
+    "python": "$pythonPath -u $fullFileName",
+    }
+}

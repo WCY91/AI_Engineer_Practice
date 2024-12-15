@@ -1,0 +1,28 @@
+Title: 🚀 GPT-4o can do this
+
+
+You won't believe this.
+
+GPT-4o can read videos!
+
+Yeah, you heard that right.
+
+God damn video-to-text.
+
+OpenAI's latest API can take any video and convert it into text, turning hours of manual work into minutes.
+
+In my latest tutorial, I’m breaking down how to:
+
+Integrate OpenAI API with Python
+Seamlessly convert video content to text
+Use Whisper to transcribe audio and supercharge GPT-4o
+Ready to level up?
+
+Watch the tutorial now: https://youtu.be/JQ_Er9bMLPk​
+
+
+Catch you on the inside!
+
+Diogo
+
+PS: Don't forget to watch.

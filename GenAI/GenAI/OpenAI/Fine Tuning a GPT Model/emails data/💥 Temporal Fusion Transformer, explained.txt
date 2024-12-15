@@ -1,0 +1,44 @@
+Title: 💥 Temporal Fusion Transformer, explained
+
+
+Hey Reader,
+
+Let's cut straight to the chase.
+
+I've just dropped a brand-new YouTube video that's about to flip your understanding of time series forecasting upside down.
+
+Introducing: Temporal Fusion Transformers.
+
+Yeah, it's as groundbreaking as it sounds.
+
+In this video, I dive deep into the theoretical underpinnings and peel back the layers on how this cutting-edge architecture works.
+
+No fluff. No filler.
+
+Just pure, unadulterated knowledge that'll have you forecasting like it's 2030.
+
+Think of it as your VIP ticket to the future of data science.
+
+While others are stuck tweaking outdated models and chasing their tails, you'll be leaps and bounds ahead—setting the trends instead of following them.
+
+But here's the kicker:
+
+Most people will sleep on this.
+
+They'll cling to their old methods like a drowning man clings to a lifeboat, oblivious to the superyacht cruising by.
+
+Don't be that person.
+
+Be the trailblazer who leaves the competition eating your digital dust.
+
+👉 Watch the Video Now​
+
+Level up your forecasting arsenal.
+
+The future doesn't wait, and neither should you.
+
+Catch you on the flip side.
+
+Diogo
+
+P.S. Being ahead of the curve isn't just an advantage—it's everything. Don't let this golden opportunity slip through your fingers.

@@ -68,7 +68,7 @@ unlike the for loop construction. Given the relative inefficiency of loops in Py
 index_bits = (doc.dot(random_vectors) >= 0)
 powers_of_two = (1 << np.arange(15, -1, -1))
 
-index_bits = corpus.dot(random_vectors) >= 0
+index_bits = corpus.dot(random_vectors) >= 0 #將二進位索引轉換為整數：
 '''
 This array gives us the integer index of the bins for all documents.
 
@@ -155,7 +155,7 @@ search_radius = 3
 for diff in combinations(range(num_vector), search_radius):
     print (diff)
 
-def search_nearby_bins(query_bin_bits, table, search_radius=2, initial_candidates=set()):
+def search_nearby_bins(query_bin_bits, table, search_radius=2, initial_candidates=set()): #在查詢階段，除了搜索同一桶中的文章，還會搜索鄰近桶（即僅改變少量位的桶）
     """
     For a given query vector and trained LSH model, return all candidate neighbors for
     the query among all bins within the given search radius.

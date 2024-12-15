@@ -1,0 +1,48 @@
+Title: 💡 OpenAI is too Vanilla
+
+
+Reader,
+
+Last week, I hit up an event for startups, and guess what the main topics were?
+
+AI and Crypto.
+
+Yep, Crypto Bros rubbing shoulders with AI nerds.
+
+Absolute heaven, right?
+
+One session was packed to the rafters, featuring the Chief Architect of OpenAI.
+
+Now, while the session was informative, it was a bit... Vanilla.
+
+No jaw-dropping, game-changing revelations.
+
+But it did cover some solid ground.
+
+Here's the lowdown:
+
+1. Text Models are King: For the foreseeable future, text models will lead the pack. First, it’s text, then pictures, audio, and finally, video. The best models will be text-based.
+2. Customization is Key: The market will zero in on customization. While ChatGPT, Gemini, and the like provide general answers, the future lies in customized bots. Think niche-specific AI for tasks like exercises, Q&A, social media, etc. Tons of startups at the event were all about customized GPTs or RAG architecture.
+3. The Rise of Multimodality: We're spoiled, really. We expect to interact with our devices using voice, text, video—whatever's convenient at the moment. If it is on our phone, we want to tap it. And that’s the direction AI products are heading. Whether you’re walking down the street or sitting at your desk, your AI should be ready to respond.
+
+My takeaway from the event?
+
+AI will make copying everything easier.
+
+Want to clone Slack or Airbnb? Piece of cake.
+
+But it’s tough to copy something customized, built from your unique data and business insights.
+
+That’s your moat.
+
+Build your own databases, leverage your proprietary information, and create tools that are distinctly yours.
+
+That’s how you stay ahead of the pack.
+
+So, what’s your take on the AI-first world? What’s your strategy to stand out?
+
+To our non-artificial relationship,
+
+Diogo
+
+PS: I recently launched a 2.5 hour deep dive to Code Interpreter from ChatGPT

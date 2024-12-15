@@ -1,0 +1,71 @@
+Title: The price of a Coca-Cola
+
+
+Hey Reader
+
+Ever wondered why some restaurants burst onto the scene with a splash and then disappear just as quickly?
+
+It’s not just about the food.
+
+It’s about mastering the economics of running a restaurant—something not every passionate chef knows right off the bat.
+
+In my start up for restaurants, one of the products we aim to build is related to analytics.
+
+We want to provide prescriptive analytics and answer questions like:
+
+1.What should be the price of a coca-cola in a restaurant?
+2.What about the price when restaurants sell on Uber Eats (or any other delivery platform)?
+3.Should the Uber Eats price just be the restaurant price + commission?
+And these questions add value to the restaurants.
+
+You see.
+
+A whopping 60% of restaurants fail within their first year.
+
+And that jumps to 80% within 5 years.
+
+Restaurants are founded by people who have a passion for cooking.
+
+Even those that have formal culinary education lack economics and accounting knowledge.
+
+And we can see that in the data.
+
+We found that restaurants that have just joined delivery platforms have a 50% mark up on Coca-cola bottles vs established restaurants.
+
+That's massive.
+
+When you visit a restaurant and ask for a Cola, you get a glass, some ice cubes, some lemon.
+
+Heck, the staff even opens the bottle for you and, if you are lucky, with a smile.
+
+At home you get a bottle.
+
+It's not a restaurant service, it's a grocery delivery.
+
+Most restaurant owners DON'T understand that
+
+So who will pay for that cola and be satisfied?
+
+No one.
+
+Established restaurants have figured it out.
+
+Some even offer it as an added complementary product to increase conversion.
+
+But new ones are way off the mark.
+
+And, unfortunately, even though new restaurant owners may be very talented hard working, 60% will fail in one year.
+
+Somehow, part of this could be avoided, using data to improve conversion and profitability.
+
+That is part of our mission.
+
+To be the right hand of the restaurants and help them thrive.
+
+And now a question to you: do you have a side project that you are proud off that you would like to share? Just reply to this email.
+
+To your success,
+
+Diogo
+
+PS: I am tossing around this slogan: "We cook the data, you cook the food." Too cheesy, or just right? Tell us what you think!
