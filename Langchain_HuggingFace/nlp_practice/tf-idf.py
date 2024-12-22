@@ -30,3 +30,10 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
 tfidf = TfidfVectorizer(max_features=1000,ngram_range=(2,2))
 X=tfidf.fit_transform(corpus).toarray()
 print(tfidf.vocabulary_)
+
+'''
+Lemmatisation is closely related to stemming. The difference is that a stemmer operates on a single word without knowledge of the context, 
+and therefore cannot discriminate between words which have different meanings depending on part of speech. 
+However, stemmers are typically easier to implement and run faster,
+ and the reduced accuracy may not matter for some applications.
+'''
