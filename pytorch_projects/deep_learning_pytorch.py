@@ -321,3 +321,817 @@ print("The prediction result: \n", yhat)
 yhat = model(X)
 print("The prediction result: \n", yhat)
 
+"""## Logistic Regression and Bad Initialization Value"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+import torch
+from mpl_toolkits import mplot3d
+from torch.utils.data import Dataset,DataLoader
+import torch.nn as nn
+
+class plot_error_surfaces(object):
+  def __init__(self,w_range,b_range,X,Y,n_samples=30,go=True):
+    W = np.linspace(-w_range,w_range,n_samples)
+    B = np.linspace(-b_range,b_range,n_samples)
+    w,b = np.meshgrid(W,B)
+    Z = np.zeros((30,30))
+    count1 = 0
+    self.y = Y.numpy()
+    self.x = X.numpy()
+    for w1,b1 in zip(w,b):
+      count2 = 0
+      for w2,b2 in zip(w1,b1):
+        Z[count1, count2] = np.mean((self.y - (1 / (1 + np.exp(-1*w2 * self.x - b2)))) ** 2)
+        count2 += 1
+      count1+=1
+    self.Z=Z
+    self.w = w
+    self.b = b
+    self.W = []
+    self.B = []
+    self.LOSS = []
+    self.n = 0
+    if go==True:
+      plt.figure()
+      plt.figure(figsize = (7.5,5))
+      plt.axes(projection='3d').plot_surface(self.w,self.b,self.Z,rstride=1,cstride=1,cmap='viridis',edgecolor='none')
+      plt.title('Loss Surface')
+      plt.xlabel('w')
+      plt.ylabel('b')
+      plt.show()
+      plt.figure()
+      plt.title('Loss Surface Contour')
+      plt.xlabel('w')
+      plt.ylabel('b')
+      plt.contour(self.w,self.b,self.Z)
+      plt.show()
+
+  def set_para_loss(self,model,loss):
+    self.n = self.n+1
+    self.W.append(list(model.parameters())[0].item())
+    self.B.append(list(model.parameters())[1].item())
+    self.LOSS.append(loss)
+
+  def final_plot(self):
+    ax= plt.axes(projection='3d')
+    ax.plot_wireframe(self.w,self.b,self.Z)
+    ax.scatter(self.W,self.B,self.LOSS,c='r',marker='x',s=200,alpha=1)
+    plt.figure()
+    plt.contour(self.w,self.b,self.Z)
+    plt.scatter(self.W,self.B,c='r',marker='x')
+    plt.xlabel('w')
+    plt.ylabel('b')
+    plt.show()
+
+  def plot_ps(self):
+    plt.subplot(121)
+    plt.ylim
+    plt.plot(self.x,self.y,'ro',label='training points')
+    plt.plot(self.x, self.W[-1] * self.x + self.B[-1], label="estimated line")
+    plt.plot(self.x, 1 / (1 + np.exp(-1 * (self.W[-1] * self.x + self.B[-1]))), label='sigmoid')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.ylim((-0.1,2))
+    plt.title('Data Space Iteration: ' + str(self.n))
+    plt.show()
+    plt.subplot(122)
+    plt.contour(self.w, self.b, self.Z)
+    plt.scatter(self.W, self.B, c='r', marker='x')
+    plt.title('Loss Surface Contour Iteration' + str(self.n))
+    plt.xlabel('w')
+    plt.ylabel('b')
+
+def PlotStuff(X,Y,model,epoch,leg=True):
+  plt.plot(X.numpy(),model(X).detach().numpy(),label=('epoch'+str(epoch)))
+  plt.plot(X.numpy(),Y.numpy(),'r')
+  if leg==True:
+    plt.legend()
+  else:
+    pass
+
+torch.manual_seed(0)
+class Data(Dataset):
+  def __init__(self):
+    self.x = torch.arange(-1, 1, 0.1).view(-1, 1)
+    self.y = torch.zeros(self.x.shape[0], 1)
+    self.y[self.x[:, 0] > 0.2] = 1
+    self.len = self.x.shape[0]
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+data_set = Data()
+
+class logistic_regression(nn.Module):
+  def __init__(self,n_inputs):
+    super(logistic_regression,self).__init__()
+    self.linear = nn.Linear(n_inputs,1)
+
+  def forward(self,x):
+    yhat = torch.sigmoid(self.linear(x))
+    return yhat
+
+model = logistic_regression(1)
+model.state_dict()['linear.weight'].data[0] = torch.tensor([[-5]])
+model.state_dict()['linear.bias'].data[0] = torch.tensor([[-10]])
+print("The parameters: ", model.state_dict())
+
+get_surface = plot_error_surfaces(15, 13, data_set[:][0], data_set[:][1], 30)
+trainloader = DataLoader(dataset=data_set, batch_size=3)
+criterion_rms = nn.MSELoss()
+learning_rate = 2
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+def train_model(epochs):
+  for epoch in range(epochs):
+    for x, y in trainloader:
+      yhat = model(x)
+      loss = criterion_rms(yhat, y)
+      optimizer.zero_grad()
+      loss.backward()
+      optimizer.step()
+      get_surface.set_para_loss(model, loss.tolist())
+    if epoch % 20 == 0:
+      get_surface.plot_ps()
+
+train_model(100)
+yhat = model(data_set.x)
+label = yhat > 0.5
+print("The accuracy: ", torch.mean((label == data_set.y.type(torch.ByteTensor)).type(torch.float)))
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+import torch
+from torch.utils.data import Dataset, DataLoader
+import torch.nn as nn
+def criterion(yhat,y):
+  out = -1 * torch.mean(y * torch.log(yhat) + (1 - y) * torch.log(1 - yhat))
+  return out
+
+# Build in criterion
+# criterion = nn.BCELoss()
+
+trainloader = DataLoader(dataset = data_set, batch_size = 3)
+learning_rate = 2
+optimizer = torch.optim.SGD(model.parameters(), lr = learning_rate)
+def train_model(epochs):
+  for epoch in range(epochs):
+    for x, y in trainloader:
+      yhat = model(x)
+      loss = criterion(yhat, y)
+      optimizer.zero_grad()
+      loss.backward()
+      optimizer.step()
+      get_surface.set_para_loss(model, loss.tolist())
+    if epoch % 20 == 0:
+      get_surface.plot_ps()
+
+train_model(100)
+yhat = model(data_set.x)
+label = yhat > 0.5
+print("The accuracy: ", torch.mean((label == data_set.y.type(torch.ByteTensor)).type(torch.float)))
+
+"""# Deep Neural Network for Breast Cancer Classification"""
+
+!pip install ucimlrepo==0.0.7
+
+from ucimlrepo import fetch_ucirepo
+breast_cancer_wisconsin_diagnostic = fetch_ucirepo(id=17)
+
+# data (as pandas dataframes)
+X = breast_cancer_wisconsin_diagnostic.data.features
+y = breast_cancer_wisconsin_diagnostic.data.targets
+
+import pandas as pd
+data = pd.concat([X,y],axis=1)
+data_B = data[data['Diagnosis'] == 'B']
+data_M = data[data['Diagnosis'] == 'M']
+
+data_B = data_B.sample(n=200, random_state=42)
+data_M = data_M.sample(n=200, random_state=42)
+balanced_data = pd.concat([data_B, data_M])
+
+display(balanced_data['Diagnosis'].value_counts())
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import torch
+X = balanced_data.drop('Diagnosis', axis=1)
+y = balanced_data['Diagnosis']
+y = y.map({'B': 0, 'M': 1})
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+from torch.utils.data import DataLoader, TensorDataset
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+X_train = torch.tensor(X_train, dtype=torch.float32)
+X_test = torch.tensor(X_test, dtype=torch.float32)
+y_train = torch.tensor(y_train.values, dtype=torch.long)
+y_test = torch.tensor(y_test.values, dtype=torch.long)
+
+train_dataset = TensorDataset(X_train, y_train)
+test_dataset = TensorDataset(X_test, y_test)
+
+train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
+
+import torch.nn as nn
+class ClassificationNet(nn.Module):
+  def __init__(self,input_units = 30,hidden_units=64,output_units=2):
+    super(ClassificationNet,self).__init__()
+    self.fc1 = nn.Linear(input_units,hidden_units)
+    self.fc2 = nn.Linear(hidden_units,output_units)
+
+  def forward(x):
+    x = torch.relu(self.fc1(x))
+    x = self.fc2(x)
+    return x
+
+model = ClassificationNet(input_units=30, hidden_units=64, output_units=2)
+import torch.optim as optim
+
+# Define the loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+epochs = 10
+train_losses = []
+test_losses = []
+
+for epoch in range(epochs):
+  model.train()
+  running_loss = 0.0
+  for X_batch,y_batch in train_loader:
+    optimizer.zero_grad()
+    outputs = model(X_batch)
+    loss = criterion(outputs, y_batch)
+    loss.backward()
+    optimizer.step()
+    running_loss += loss.item()
+  train_loss = running_loss/len(train_loader)
+  train_losses.append(train_loss)
+  model.eval()
+  test_loss = 0.0
+  with torch.no_grad():
+    for X_batch, y_batch in test_loader:
+      test_outputs = model(X_batch)
+      loss = criterion(test_outputs, y_batch)
+      test_loss += loss.item()
+
+  test_loss /= len(test_loader)
+  test_losses.append(test_loss)
+
+import matplotlib.pyplot as plt
+
+# Plot the loss curves
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, epochs + 1), train_losses, label='Training Loss')
+plt.plot(range(1, epochs + 1), test_losses, label='Test Loss', linestyle='--')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training and Test Loss Curve')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+"""# Softmax Classifier 1"""
+
+import torch.nn as nn
+import torch
+import matplotlib.pyplot as plt
+import numpy as np
+from torch.utils.data import Dataset,DataLoader
+
+def plot_data(data_set,model=None,n=1,color=False):
+  X = data_set[:][0]
+  Y = data_set[:][1]
+  plt.plot(X[Y==0,0].numpy(),Y[Y==0].numpy(),'bo',label = 'y = 0')
+  plt.plot(X[Y==1,0].numpy(),0 * Y[Y == 1].numpy(), 'ro', label = 'y = 1')
+  plt.plot(X[Y == 2, 0].numpy(), 0 * Y[Y == 2].numpy(), 'go', label = 'y = 2')
+  plt.ylim((-0.1,3))
+  plt.legend()
+  if model != None:
+    w = list(model.parameters())[0][0].detach()
+    b = list(model.parameters())[1][0].detach()
+    y_label = ['yhat=0', 'yhat=1', 'yhat=2']
+    y_color = ['b','r','g']
+    Y = []
+    for w,b,y_l,y_c in zip(model.state_dict()['0.weight'],model.state_dict()['0.bias'],y_label,y_color):
+      Y.append((w*X+b).numpy())
+      plt.plot(X.numpy(),(w*X+b).numpy(),y_c,label=y_l)
+    if color==True:
+      x = X.numpy()
+      x = x.reshape(-1)
+      top = np.ones(x.shape)
+      y0 = Y[0].reshape(-1)
+      y1 = Y[1].reshape(-1)
+      y2 = Y[2].reshape(-1)
+      plt.fill_between(x, y0, where = y1 > y1, interpolate = True, color = 'blue')
+      plt.fill_between(x, y0, where = y1 > y2, interpolate = True, color = 'blue')
+      plt.fill_between(x, y1, where = y1 > y0, interpolate = True, color = 'red')
+      plt.fill_between(x, y1, where = ((y1 > y2) * (y1 > y0)),interpolate = True, color = 'red')
+      plt.fill_between(x, y2, where = (y2 > y0) * (y0 > 0),interpolate = True, color = 'green')
+      plt.fill_between(x, y2, where = (y2 > y1), interpolate = True, color = 'green')
+  plt.legend()
+  plt.show()
+
+torch.manual_seed(0)
+class Data(Dataset):
+  def __init__(self):
+    self.x = torch.arange(-2,2,0.1).view(-1,1)
+    self.y = torch.zeros(self.x.shape[0])
+    self.y[(self.x > -1.0)[:, 0] * (self.x < 1.0)[:, 0]] = 1
+    self.y[(self.x >= 1.0)[:, 0]] = 2
+    self.y = self.y.type(torch.LongTensor)
+    self.len = self.x.shape[0]
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+data_set = Data()
+plot_data(data_set)
+
+model = nn.Sequential(nn.Linear(1,3))
+model.state_dict()
+
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(model.parameters(),lr=0.01)
+train_loader = DataLoader(dataset = data_set, batch_size = 5)
+LOSS = []
+def train_model(epochs):
+  for epoch in range(epochs):
+    if epoch % 50 ==0:
+      pass
+      plot_data(data_set,model)
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      LOSS.append(loss)
+      loss.backward()
+      optimizer.step()
+
+train_model(300)
+z =  model(data_set.x)
+_, yhat = z.max(1)
+print("The prediction:", yhat)
+
+correct = (data_set.y == yhat).sum().item()
+accuracy = correct / len(data_set)
+print("The accuracy: ", accuracy)
+
+Softmax_fn=nn.Softmax(dim=-1)
+Probability =Softmax_fn(z)
+for i in range(3):
+    print("probability of class {} isg given by  {}".format(i, Probability[0,i]) )
+
+"""# Softmax Mnist dataset"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import matplotlib.pyplot as plt
+import numpy as np
+
+def PlotParameters(model):
+  W = model.state_dict()['linear.weight'].data
+  w_min = W.min().item()
+  w_max = W.max().item()
+  fig,axes = plt.subplots(2,5)
+  fig.subplots_adjust(hspace=0.01, wspace=0.1)
+
+  for i,ax in enumerate(axes.flat):
+    if i<10:
+      ax.set_xlabel("class: {0}".format(i))
+      ax.imshow(W[i,:].view(28,28),vmin=w_min,vmax=w_max,cmap='seismic')
+      ax.set_xticks([])
+      ax.set_yticks([])
+  plt.show()
+
+def show_data(data_sample):
+  plt.imshow(data_sample[0].numpy().reshape(28,28),cmap='gray')
+  plt.title('y = ' + str(data_sample[1]))
+
+train_dataset = dsets.MNIST(root='./data',train=True,download=True,transform=transforms.ToTensor())
+validation_dataset = dsets.MNIST(root='./data',download=True,transform=transforms.ToTensor())
+print("Type of data element: ", type(train_dataset[0][1]))
+
+print("The image: ", show_data(train_dataset[3]))
+print("The label: ", train_dataset[3][1])
+
+# build softmax classifer
+class SoftMax(nn.Module):
+  def __init__(self,input_size,output_size):
+    super(SoftMax,self).__init__()
+    self.linear = nn.Linear(input_size,output_size)
+
+  def forward(self,x):
+    z = self.linear(x)
+    return z
+
+train_dataset[0][0].shape
+
+input_dim = 28*28
+output_dim = 10
+model = SoftMax(input_dim,output_dim)
+print('W: ',list(model.parameters())[0].size())
+print('b: ',list(model.parameters())[1].size())
+PlotParameters(model)
+
+learning_rate=0.1
+optimizer = torch.optim.SGD(model.parameters(),lr=learning_rate)
+criterion = nn.CrossEntropyLoss()
+train_loader = torch.utils.data.DataLoader(dataset = train_dataset,batch_size=100)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset,batch_size=5000)
+
+n_epochs=10
+loss_list = []
+acc_list = []
+N_test = len(validation_dataset)
+def train_model(n_epochs):
+  for epoch in range(n_epochs):
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      z = model(x.view(-1,28*28))
+      loss = criterion(z,y)
+      loss.backward()
+      optimizer.step()
+    correct = 0
+    for x_test, y_test in validation_loader:
+      z = model(x_test.view(-1,28*28))
+      _,yhat= torch.max(z.data,1)
+      correct += (yhat == y_test).sum().item()
+    accuracy = correct / N_test
+    loss_list.append(loss.data)
+    acc_list.append(accuracy)
+
+train_model(n_epochs)
+fig, ax1 = plt.subplots()
+color = 'tab:red'
+ax1.plot(loss_list,color=color)
+ax1.set_xlabel('epoch',color=color)
+ax1.set_ylabel('total loss',color=color)
+ax1.tick_params(axis='y', color=color)
+
+ax2 = ax1.twinx()
+color = 'tab:blue'
+ax2.set_ylabel('accuracy', color=color)
+ax2.plot( acc_list, color=color)
+ax2.tick_params(axis='y', color=color)
+fig.tight_layout()
+
+PlotParameters(model)
+Softmax_fn=nn.Softmax(dim=-1)
+count = 0
+for x, y in validation_dataset:
+  z = model(x.reshape(-1, 28 * 28))
+  _, yhat = torch.max(z, 1)
+  if yhat != y:
+    show_data((x, y))
+    plt.show()
+    print("yhat:", yhat)
+    print("probability of class ", torch.max(Softmax_fn(z)).item())
+    count += 1
+  if count >= 5:
+    break
+
+"""# Simple One Hidden Layer Neural Network"""
+
+import torch
+import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
+from torch import sigmoid
+torch.manual_seed(0)
+
+def PlotStuff(X,Y,model,epoch,leg=True):
+  plt.plot(X.numpy(),model(X).detach().numpy(),label=('epoch '+str(epoch)))
+  plt.plot(X.numpy(),Y.numpy(),'r')
+  plt.xlabel('x')
+  if leg == True:
+    plt.legend()
+  else:
+    pass
+
+class Net(nn.Module):
+  def __init__(self,D_in,H,D_out):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+    self.a1 = None
+    self.l1 = None
+    self.l2 = None
+
+  def forward(self,x):
+    self.l1 = self.linear1(x)
+    self.a1 = sigmoid(self.l1)
+    self.l2 = self.linear2(self.a1)
+    yhat = sigmoid(self.l2)
+    return yhat
+
+def train(Y,X,model,optimizer,criterion,epochs=1000):
+  cost = []
+  total = 0
+  for epoch in range(epochs):
+    total = 0
+    for y,x in zip(Y,X):
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      loss.backward()
+      optimizer.step()
+      optimizer.zero_grad()
+      total+=loss.item()
+    cost.append(total)
+    if epoch % 300 == 0:
+      PlotStuff(X,Y,model,epoch,leg=True)
+      plt.show()
+      model(X)
+      plt.scatter(model.a1.detach().numpy()[:,0],model.a1.detach().numpy()[:,1],c=Y.numpy().reshape(-1))
+      plt.title('activations')
+      plt.show()
+  return cost
+
+X = torch.arange(-20, 20, 1).view(-1, 1).type(torch.FloatTensor)
+Y = torch.zeros(X.shape[0])
+Y[(X[:, 0] > -4) & (X[:, 0] < 4)] = 1.0
+
+def criterion_cross(outputs, labels): # like bce loss
+    out = -1 * torch.mean(labels * torch.log(outputs) + (1 - labels) * torch.log(1 - outputs))
+    return out
+
+D_in = 1
+H = 2
+D_out = 1
+learning_rate = 0.1
+model = Net(D_in,H,D_out)
+optimizer = torch.optim.SGD(model.parameters(),lr = learning_rate)
+cost_cross = train(Y,X,model,optimizer,criterion_cross,epochs=1000)
+plt.plot(cost_cross)
+plt.xlabel('epoch')
+plt.title('cross entropy loss')
+
+x=torch.tensor([0.0])
+yhat=model(x)
+print(yhat)
+X_=torch.tensor([[0.0],[2.0],[3.0]])
+Yhat=model(X_)
+print(Yhat)
+Yhat=Yhat>0.5
+Yhat
+
+"""# Neural Networks More Hidden Neurons"""
+
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset,DataLoader
+
+def get_hist(model,data_set):
+  activations=model.activation(data_set.x)
+  for i,activation in enumerate(activations):
+    plt.hist(activation.numpy(),4,density=True)
+    plt.title("Activation layer " + str(i+1))
+    plt.xlabel("Activation")
+    plt.xlabel("Activation")
+    plt.legend()
+    plt.show()
+
+def PlotStuff(X,Y,model=None,leg=False):
+  plt.plot(X[Y==0].numpy(),Y[Y==0].numpy(),'or',label='training points y=0')
+  plt.plot(X[Y==1].numpy(),Y[Y==1].numpy(),'ob',label='training points y=1')
+
+  if model != None:
+    plt.plot(X.numpy(),model(X).detach().numpy(),label='neural network')
+  plt.legend()
+  plt.show()
+
+class Data(Dataset):
+  def __init__(self):
+    self.x = torch.linspace(-20,20,100).view(-1,1)
+    self.y = torch.zeros(self.x.shape[0])
+    self.y[(self.x[:,0]>-10)&(self.x[:,0]<-5)]=1
+    self.y[(self.x[:,0]>5)& (self.x[:,0]<10)]=1
+    self.y = self.y.view(-1,1)
+    self.len = self.x.shape[0]
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+class Net(nn.Module):
+  def __init__(self,D_in,H,D_out):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+
+  def forward(self,x):
+    x = torch.sigmoid(self.linear1(x))
+    x = torch.sigmoid(self.linear2(x))
+    return x
+
+def train(data_set,model,criterion,train_loader,optimizer,epochs=5,plot_number=10):
+  cost = []
+  for epoch in range(epochs):
+    total = 0
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      optimizer.zero_grad
+      loss.backward()
+      optimizer.step()
+      total +=loss.item()
+    if epoch % plot_number==0:
+      PlotStuff(data_set.x,data_set.y,model)
+    cost.append(total)
+
+  plt.figure()
+  plt.plot(cost)
+  plt.xlabel('epoch')
+  plt.ylabel('cost')
+  plt.show()
+  return cost
+
+data_set=Data()
+PlotStuff(data_set.x,data_set.y,leg=False)
+torch.manual_seed(0)
+model=Net(1,9,1)
+learning_rate=0.1
+criterion=nn.BCELoss()
+optimizer=torch.optim.Adam(model.parameters(), lr=learning_rate)
+train_loader=DataLoader(dataset=data_set,batch_size=100)
+COST=train(data_set,model,criterion, train_loader, optimizer, epochs=600,plot_number=200)
+
+"""# Practice: Neural Networks with One Hidden Layer: Noisy XOR"""
+
+import numpy as np
+import torch.nn as nn
+import torch
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+from torch.utils.data import Dataset,DataLoader
+'''
+這個函數會繪製：
+
+模型的分類邊界（背景顏色標記決策區域）。
+數據集中的點（使用不同顏色和標記表示不同類別）。
+cmap_light：背景顏色，用於區分決策區域。
+cmap_bold：數據點顏色，用於標記真實標籤。
+
+
+
+'''
+def plot_decision_regions_2class(model,data_set):
+  cmap_light = ListedColormap(['#FFAAAA', '#AAFFAA', '#00AAFF'])
+  cmap_bold = ListedColormap(['#FF0000', '#00FF00', '#00AAFF'])
+  X = data_set.x.numpy()
+  y = data_set.y.numpy()
+  h = .02
+  x_min,x_max = X[:,0].min() -0.1 , X[:,0].max() +0.1
+  y_min,y_max = y[:,0].min() -0.1, y[:,0].max() + 0.1
+  xx, yy = np.meshgrid(np.arange(x_min, x_max, h),np.arange(y_min, y_max, h))
+  '''
+  生成一個 2D 網格點矩陣，讓每個點都對應一個 [x, y] 的座標。
+  xx：每個網格點的 x 坐標。
+  yy：每個網格點的 y 坐標。
+  x_min=-1, x_max=1, h=0.5
+  xx:
+  [[-1.  -0.5  0.   0.5]
+  [-1.  -0.5  0.   0.5]
+  [-1.  -0.5  0.   0.5]
+  [-1.  -0.5  0.   0.5]]
+
+  yy:
+  [[-1.  -1.  -1.  -1. ]
+  [-0.5 -0.5 -0.5 -0.5]
+  [ 0.   0.   0.   0. ]
+  [ 0.5  0.5  0.5  0.5]]
+
+  '''
+  XX = torch.Tensor(np.c_[xx.ravel(), yy.ravel()])
+  yhat = np.logical_not((model(XX)[:, 0] > 0.5).numpy()).reshape(xx.shape)
+  plt.pcolormesh(xx, yy, yhat, cmap=cmap_light)
+  plt.plot(X[y[:, 0] == 0, 0], X[y[:, 0] == 0, 1], 'o', label='y=0')
+  plt.plot(X[y[:, 0] == 1, 0], X[y[:, 0] == 1, 1], 'ro', label='y=1')
+  plt.title("decision region")
+  plt.legend()
+
+def accuracy(model, data_set):
+    X = data_set.x  # 提取特徵
+    y = data_set.y  # 提取標籤
+    return np.mean(y.view(-1).numpy() == (model(X)[:, 0] > 0.5).numpy())
+
+class Net(nn.Module):
+  def __init__(self,D_in,H,D_out):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+
+  def forward(self,x):
+    x = torch.sigmoid(self.linear1(x))
+    x = torch.sigmoid(self.linear2(x))
+    return x
+
+def train(data_set,model,criterion,train_loader,optimizer,epochs=5):
+  COST = []
+  ACC = []
+  for epoch in range(epochs):
+    total = 0
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      optimizer.zero_grad()
+      loss.backward()
+      optimizer.step()
+      total+=loss.item()
+    ACC.append(accuracy(model,data_set))
+    COST.append(total)
+  fig,ax1 = plt.subplots()
+  color = 'tab:red'
+  ax1.plot(COST,color=color)
+  ax1.set_xlabel('epoch', color=color)
+  ax1.set_ylabel('total loss', color=color)
+  ax1.tick_params(axis='y', color=color)
+
+  ax2 = ax1.twinx() # 將ax1的x軸給ax2
+  color = 'tab:blue'
+  ax2.set_ylabel('accuracy',color=color)
+  ax2.plot(ACC,color=color)
+  ax2.tick_params(axis='y',color=color)
+  fig.tight_layout()
+  plt.show()
+  return COST
+
+class XOR_Data(Dataset):
+  '''
+    資料點按 XOR 規則生成：
+    [0.0, 0.0]：標籤 0
+    [0.0, 1.0]：標籤 1
+    [1.0, 0.0]：標籤 1
+    [1.0, 1.0]：標籤 0
+  '''
+  def __init__(self,N_s=100):
+    self.x = torch.zeros((N_s,2)) #2D
+    self.y = torch.zeros((N_s,1)) # label value
+    for i in range(N_s // 4): # 4象限
+      self.x[i,:] = torch.Tensor([0.0, 0.0])
+      self.y[i,0] = torch.Tensor([0.0])
+      self.x[i + N_s // 4, :] = torch.Tensor([0.0, 1.0])
+      self.y[i + N_s // 4, 0] = torch.Tensor([1.0])
+      self.x[i + N_s // 2, :] = torch.Tensor([1.0, 0.0])
+      self.y[i + N_s // 2, 0] = torch.Tensor([1.0])
+      self.x[i + 3 * N_s // 4, :] = torch.Tensor([1.0, 1.0])
+      self.y[i + 3 * N_s // 4, 0] = torch.Tensor([0.0])
+      self.x = self.x + 0.01 * torch.randn((N_s, 2))
+
+    self.len = N_s
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+  def plot_stuff(self):
+    plt.plot(self.x[self.y[:,0]==0,0].numpy(),self.x[self.y[:, 0] == 0, 1].numpy(), 'o', label="y=0")
+    plt.plot(self.x[self.y[:, 0] == 1, 0].numpy(), self.x[self.y[:, 0] == 1, 1].numpy(), 'ro', label="y=1")
+    plt.legend()
+    plt.show()
+
+data_set = XOR_Data()
+data_set.plot_stuff()
+print(data_set.x.shape)
+
+learning_rate = 0.001
+model = Net(2,3,1)
+criterion = nn.BCELoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+train_loader = DataLoader(dataset=data_set, batch_size=1)
+LOSS12 = train(data_set, model, criterion, train_loader, optimizer, epochs=500)
+
+plot_decision_regions_2class(model, data_set)
+
+
+
+
+
+
+
+
+
