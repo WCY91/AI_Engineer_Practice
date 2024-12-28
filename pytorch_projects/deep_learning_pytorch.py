@@ -497,7 +497,6 @@ print("The accuracy: ", torch.mean((label == data_set.y.type(torch.ByteTensor)).
 
 """# Deep Neural Network for Breast Cancer Classification"""
 
-!pip install ucimlrepo==0.0.7
 
 from ucimlrepo import fetch_ucirepo
 breast_cancer_wisconsin_diagnostic = fetch_ucirepo(id=17)
