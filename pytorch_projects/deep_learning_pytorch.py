@@ -497,6 +497,7 @@ print("The accuracy: ", torch.mean((label == data_set.y.type(torch.ByteTensor)).
 
 """# Deep Neural Network for Breast Cancer Classification"""
 
+!pip install ucimlrepo==0.0.7
 
 from ucimlrepo import fetch_ucirepo
 breast_cancer_wisconsin_diagnostic = fetch_ucirepo(id=17)
@@ -1126,9 +1127,1470 @@ LOSS12 = train(data_set, model, criterion, train_loader, optimizer, epochs=500)
 
 plot_decision_regions_2class(model, data_set)
 
+"""># Neural Networks with One Hidden Layer"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_acc_loss(training_results):
+  plt.subplot(2,1,1)
+  plt.plot(training_results['training_loss'],'r')
+  plt.ylabel('loss')
+  plt.title('training loss iterations')
+  plt.subplot(2,1,2)
+  plt.plot(training_results['validation_accuracy'])
+  plt.ylabel('accuracy')
+  plt.xlabel('epochs')
+  plt.show()
+
+def print_model_parameters(model):
+  count = 0
+  for ele in model.state_dict():
+    count += 1
+    if count %2 != 0:
+      print("The following are the parameters for the layer ", count // 2 + 1)
+    if ele.find('bias')!=-1:
+      print('the size of bias ',model.state_dict()[ele].size())
+    else:
+      print("The size of weights: ", model.state_dict()[ele].size())
+
+def show_data(data_sample):
+  plt.imshow(data_sample.numpy().reshape(28,28),cmap='gray')
+  plt.show()
+
+class Net(nn.Module):
+  def __init__(self,D_in,H,D_out):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+
+  def forward(self,x):
+    x = torch.sigmoid(self.linear1(x))
+    x = self.linear2(x)
+    return x
+
+def train(model,criterion,train_loader,validation_loader,optimizer,epochs=100):
+  i=0
+  useful_stuff={'training_loss':[],'validation_accuracy':[]}
+  for epoch in range(epochs):
+    for i,(x,y) in enumerate(train_loader):
+      optimizer.zero_grad()
+      z = model(x.view(-1, 28 * 28))
+      loss = criterion(z,y)
+      optimizer.zero_grad()
+      loss.backward()
+      optimizer.step()
+      useful_stuff['training_loss'].append(loss.data.item())
+
+    correct = 0
+    for x,y in validation_loader:
+      z = model(x.view(-1,28*28))
+      _,label = torch.max(z,1)
+      correct += (label == y).sum().item()
+    accuracy = 100*(correct/len(validation_dataset))
+    useful_stuff['validation_accuracy'].append(accuracy)
+
+  return useful_stuff
+
+train_dataset = dsets.MNIST(root='./data',train=True,download=True,transform =transforms.ToTensor())
+validation_dataset = dsets.MNIST(root='./data',download=True,transform=transforms.ToTensor())
+criterion = nn.CrossEntropyLoss()
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=2000,shuffle=True)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset,batch_size=5000,shuffle=False)
+
+input_dim=28*28
+hidden_dim=100
+output_dim=10
+
+model = Net(input_dim,hidden_dim,output_dim)
+learning_rate = 0.01
+optimizer = torch.optim.SGD(model.parameters(),lr=learning_rate)
+training_results = train(model,criterion,train_loader,validation_loader,optimizer,epochs=30)
+
+plot_acc_loss(training_results)
+count = 0
+for x,y in validation_dataset:
+  z = model(x.reshape(-1,28*28))
+  _,yhat = torch.max(z,1)
+  if yhat != y:
+    show_data(x)
+    count+=1
+  if count >= 5:
+    break
+
+"""# Activation Functions"""
+
+import torch.nn as nn
+import torch
+import matplotlib.pyplot as plt
+torch.manual_seed(0)
+
+z = torch.arange(-10,10,0.1).view(-1,1)
+
+sig = nn.Sigmoid()
+yhat = sig(z)
+plt.plot(z.detach().numpy(),yhat.detach().numpy())
+plt.xlabel('z')
+plt.ylabel('yhat')
+
+yhat = torch.sigmoid(z)
+plt.plot(z.numpy(), yhat.numpy())
+
+plt.show()
+
+TANH = nn.Tanh()
+yhat = TANH(z)
+plt.plot(z.numpy(), yhat.numpy())
+plt.show()
+yhat = torch.tanh(z)
+plt.plot(z.numpy(), yhat.numpy())
+plt.show()
+
+RELU = nn.ReLU()
+yhat = RELU(z)
+plt.plot(z.numpy(), yhat.numpy())
+yhat = torch.relu(z)
+plt.plot(z.numpy(), yhat.numpy())
+plt.show()
+
+x = torch.arange(-2, 2, 0.1).view(-1, 1)
+plt.plot(x.numpy(), torch.relu(x).numpy(), label='relu')
+plt.plot(x.numpy(), torch.sigmoid(x).numpy(), label='sigmoid')
+plt.plot(x.numpy(), torch.tanh(x).numpy(), label='tanh')
+plt.legend()
+
+"""# Test Sigmoid, Tanh, and Relu Activations Functions on the MNIST Dataset"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets  as dsets
+import matplotlib.pyplot as plt
+import numpy as np
+
+class Net(nn.Module):
+  def __init__(self, D_in, H, D_out):
+    super(Net, self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+
+  def forward(self,x):
+    x = torch.sigmoid(self.linear1(x))
+    x = self.linear2(x)
+    return x
+
+class NetTanh(nn.Module):
+  def __init__(self, D_in, H, D_out):
+    super(NetTanh, self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+
+  def forward(self,x):
+    x = torch.tanh(self.linear1(x))
+    x = self.linear2(x)
+    return x
+
+
+class NetRelu(nn.Module):
+  def __init__(self, D_in, H, D_out):
+    super(NetRelu, self).__init__()
+    self.linear1 = nn.Linear(D_in, H)
+    self.linear2 = nn.Linear(H, D_out)
+
+  def forward(self, x):
+    x = torch.relu(self.linear1(x))
+    x = self.linear2(x)
+    return x
+
+"""# Deep Neural Networks"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import numpy as np
+torch.manual_seed(2)
+
+class Net(nn.Module):
+  def __init__(self,D_in,H1,H2,D_out):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(D_in,H1)
+    self.linear2 = nn.Linear(H1,H2)
+    self.linear3 = nn.Linear(H2,D_out)
+
+  def forward(self,x):
+    x = torch.sigmoid(self.linear1(x))
+    x = torch.sigmoid(self.linear2(x))
+    x = self.linear3(x)
+    return x
+
+class NetTanh(nn.Module):
+  def __init__(self,D_in,H1,H2,D_out):
+    super(NetTanh,self).__init__()
+    self.linear1 = nn.Linear(D_in,H1)
+    self.linear2 = nn.Linear(H1,H2)
+    self.linear3 = nn.Linear(H2,D_out)
+
+  def forward(self,x):
+    x = torch.tanh(self.linear1(x))
+    x = torch.tanh(self.linear2(x))
+    x = self.linear3(x)
+    return x
+
+class NetRelu(nn.Module):
+  def __init__(self,D_in,H1,H2,D_out):
+    super(NetRelu,self).__init__()
+    self.linear1 = nn.Linear(D_in,H1)
+    self.linear2 = nn.Linear(H1,H2)
+    self.linear3 = nn.Linear(H2,D_out)
+
+  def forward(self,x):
+    x = torch.relu(self.linear1(x))
+    x = torch.relu(self.linear2(x))
+    x = self.linear3(x)
+    return x
+
+def train(model,criterion,train_loader,validation_loader,optimizer,epochs=100):
+  i = 0
+  useful_stuff = {'training_loss':[],'validation_accuracy':[]}
+  for epoch in range(epochs):
+    for i,(x,y) in enumerate(train_loader):
+      optimizer.zero_grad()
+      z = model(x.view(-1,28*28))
+      loss = criterion(z,y)
+      loss.backward()
+      optimizer.step()
+      useful_stuff['training_loss'].append(loss.data.item())
+    correct = 0
+    for x,y in validation_loader:
+      z = model(x.view(-1,28*28))
+      _,label = torch.max(z,1)
+      correct+=(label==y).sum().item()
+    accuracy=100*(correct/len(validation_dataset))
+    useful_stuff['validation_accuracy'].append(accuracy)
+
+  return useful_stuff
+
+train_dataset = dsets.MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
+validation_dataset = dsets.MNIST(root='./data', train=False, download=True, transform=transforms.ToTensor())
+
+criterion = nn.CrossEntropyLoss()
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=2000, shuffle=True)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=5000, shuffle=False)
+
+input_dim = 28 * 28
+hidden_dim1 = 50
+hidden_dim2 = 50
+output_dim = 10
+
+cust_epochs = 10
+learning_rate = 0.01
+model = Net(input_dim, hidden_dim1, hidden_dim2, output_dim)
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+training_results = train(model, criterion, train_loader, validation_loader, optimizer, epochs=cust_epochs)
+
+learning_rate = 0.01
+model_Tanh = NetTanh(input_dim, hidden_dim1, hidden_dim2, output_dim)
+optimizer = torch.optim.SGD(model_Tanh.parameters(), lr=learning_rate)
+training_results_tanch = train(model_Tanh, criterion, train_loader, validation_loader, optimizer, epochs=cust_epochs)
+
+learning_rate = 0.01
+modelRelu = NetRelu(input_dim, hidden_dim1, hidden_dim2, output_dim)
+optimizer = torch.optim.SGD(modelRelu.parameters(), lr=learning_rate)
+training_results_relu = train(modelRelu, criterion, train_loader, validation_loader, optimizer, epochs=cust_epochs)
+
+plt.plot(training_results_tanch['training_loss'], label='tanh')
+plt.plot(training_results['training_loss'], label='sigmoid')
+plt.plot(training_results_relu['training_loss'], label='relu')
+plt.ylabel('loss')
+plt.title('training loss iterations')
+plt.legend()
+
+plt.plot(training_results_tanch['validation_accuracy'], label = 'tanh')
+plt.plot(training_results['validation_accuracy'], label = 'sigmoid')
+plt.plot(training_results_relu['validation_accuracy'], label = 'relu')
+plt.ylabel('validation accuracy')
+plt.xlabel('Iteration')
+plt.legend()
+
+"""# Deeper Neural Networks with nn.ModuleList()"""
+
+import torch
+import torch.nn as nn
+import matplotlib.pyplot as plt
+import numpy as np
+import torch.nn.functional as F
+from matplotlib.colors import ListedColormap
+from torch.utils.data import Dataset, DataLoader
+
+def plot_decision_regions_3class(model,data_set):
+  cmap_light = ListedColormap(['#FFAAAA', '#AAFFAA', '#00AAFF'])
+  cmap_bold = ListedColormap(['#FF0000', '#00FF00', '#00AAFF'])
+  X = data_set.x.numpy()
+  y = data_set.y.numpy()
+  h= .02
+  x_min,x_max = X[:,0].min() -0.1, X[:,0].max()+0.1
+  y_min, y_max = X[:, 1].min() - 0.1, X[:, 1].max() + 0.1
+  xx,yy = np.meshgrid(np.arange(x_min,x_max,h)),np.arange(y_min,y_max,h)
+  XX = torch.Tensor(np.c_[xx.ravel(),yy.ravel()])
+  _,yhat = torch.max(model(XX),1)
+  yhat = yhat.numpy().reshape(xx.shape)
+  plt.pcolormesh(xx,yy,yhat,cmap=cmap_light)
+  plt.plot(X[y[:]==0,0],X[y[:]==0,1],'ro',label='y=0')
+  plt.plot(X[y[:]==1,0],X[y[:]==1,1],'go',label='y=1')
+  plt.plot(X[y[:]==2,0],X[y[:]==2,1],'o',label='y=2')
+  plt.title("decision region")
+  plt.legend()
+  plt.show()
+
+class Data(Dataset):
+  def __init__(self,K=3,N=500):
+    D=2
+    X = np.zeros((N * K, D))
+    y = np.zeros(N * K, dtype='uint8')
+    for j in range(K):
+      ix = range(N * j, N * (j + 1))
+      r = np.linspace(0.0, 1, N) # radius
+      t = np.linspace(j * 4, (j + 1) * 4, N) + np.random.randn(N) * 0.2 # theta
+      X[ix] = np.c_[r * np.sin(t), r*np.cos(t)]
+      y[ix] = j
+    self.y = torch.from_numpy(y).type(torch.LongTensor)
+    self.x = torch.from_numpy(X).type(torch.FloatTensor)
+    self.len = y.shape[0]
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+  def plot_stuff(self):
+    plt.plot(self.x[self.y[:] == 0, 0].numpy(), self.x[self.y[:] == 0, 1].numpy(), 'o', label="y = 0")
+    plt.plot(self.x[self.y[:] == 1, 0].numpy(), self.x[self.y[:] == 1, 1].numpy(), 'ro', label="y = 1")
+    plt.plot(self.x[self.y[:] == 2, 0].numpy(), self.x[self.y[:] == 2, 1].numpy(), 'go', label="y = 2")
+    plt.legend()
+    plt.show()
+
+class Net(nn.Module):
+  def __init__(self,Layers):
+    super(Net,self).__init__()
+    self.hidden=nn.ModuleList()
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      self.hidden.append(nn.Linear(input_size,output_size))
+  def forward(self,activation):
+    L = len(self.hidden)
+    for (l,linear_transform) in zip(range(L),self.hidden):
+      if l<L-1:
+        activation = F.relu(linear_transform(activation))
+      else:
+        activation = linear_transform(activation)
+    return activation
+
+def train(data_set,model,criterion,train_loader,optimizer,epochs=100):
+  LOSS = []
+  ACC = []
+  for epoch in range(epochs):
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      optimizer.zero_grad()
+      loss.backward()
+      optimizer.step()
+      LOSS.append(loss.data.item())
+    ACC.append(accuracy(model, data_set))
+
+  fig,ax1 = plt.subplots()
+  color = 'tab:red'
+  ax1.plot(LOSS,color=color)
+  ax1.set_xlabel('Iteration',color=color)
+  ax1.set_ylabel('total loss',color=color)
+  ax1.tick_params(axis = 'y', color = color)
+
+  ax2 = ax1.twinx()
+  color = 'tab:blue'
+  ax2.set_ylabel('accuracy', color = color)
+  ax2.plot(ACC, color = color)
+  ax2.tick_params(axis = 'y', color = color)
+  fig.tight_layout()
+
+  plt.show()
+  return LOSS
+
+def accuracy(model, data_set):
+  _, yhat = torch.max(model(data_set.x), 1)
+  return (yhat == data_set.y).numpy().mean()
+
+data_set = Data()
+data_set.plot_stuff()
+data_set.y = data_set.y.view(-1)
+Layers = [2, 50, 3]
+model = Net(Layers)
+learning_rate = 0.10
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+train_loader = DataLoader(dataset=data_set, batch_size=20)
+criterion = nn.CrossEntropyLoss()
+LOSS = train(data_set, model, criterion, train_loader, optimizer, epochs=100)
+
+plot_decision_regions_3class(model, data_set)
+
+"""# Using Dropout for Classification"""
+
+import torch
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from matplotlib.colors import ListedColormap
+from torch.utils.data import Dataset, DataLoader
+
+def plot_decision_regions_3class(data_set,model=None):
+  cmap_light = ListedColormap([ '#0000FF','#FF0000'])
+  cmap_bold = ListedColormap(['#FF0000', '#00FF00', '#00AAFF'])
+
+  X = data_set.x.numpy()
+  y = data_set.y.numpy()
+  h = 0.02
+  x_min , x_max = X[:,0].min()-0.1,X[:,0].max()+0.1
+  y_min, y_max = X[:, 1].min() - 0.1, X[:, 1].max() + 0.1
+  xx,yy = np.meshgrid(np.arange(x_min,x_max,h),np.arange(y_min,y_max))
+  newdata = np.c_[xx.ravel(),yy.ravel()]
+
+  Z = data_set.multi_dim_poly(newdata).flatten()
+  f = np.zeros(Z.shape)
+  f[Z > 0] = 1
+  f = f.reshape(xx.shape)
+  if model != None:
+    model.eval()
+    XX = torch.Tensor(newdata)
+    _, yhat = torch.max(model(XX), 1)
+    yhat = yhat.numpy().reshape(xx.shape)
+    plt.pcolormesh(xx, yy, yhat, cmap=cmap_light)
+    plt.contour(xx, yy, f, cmap=plt.cm.Paired)
+  else:
+    plt.contour(xx, yy, f, cmap=plt.cm.Paired)
+    plt.pcolormesh(xx, yy, f, cmap=cmap_light)
+  plt.title("decision region vs True decision boundary")
+
+def accuracy(model,data_set):
+  _,yhat = torch.max(model(data_set.x),1)
+  return (yhat==data_set.y).numpy().mean()
+
+class Data(Dataset):
+  def __init__(self,N_SAMPLES=1000,noise_std=0.15,train=True):
+    a = np.matrix([-1, 1, 2, 1, 1, -3, 1]).T
+    self.x = np.matrix(np.random.rand(N_SAMPLES,2))
+    self.f = np.array(a[0] + (self.x) * a[1:3] + np.multiply(self.x[:, 0], self.x[:, 1]) * a[4] + np.multiply(self.x, self.x) * a[5:7]).flatten()
+    self.a = a
+    self.y = np.zeros(N_SAMPLES)
+    self.y[self.f > 0] = 1
+    self.y = torch.from_numpy(self.y).type(torch.LongTensor)
+    self.x = torch.from_numpy(self.x).type(torch.FloatTensor)
+    self.x = self.x + noise_std * torch.randn(self.x.size())
+    self.f = torch.from_numpy(self.f)
+    self.a = a
+    if train == True:
+      torch.manual_seed(1)
+      self.x = self.x + noise_std * torch.randn(self.x.size())
+      torch.manual_seed(0)
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+  def plot(self):
+    X = data_set.x.numpy()
+    y = data_set.y.numpy()
+    h = 0.02
+    x_min , x_max = X[:,0].min()-0.1,X[:,0].max()+0.1
+    y_min, y_max = X[:, 1].min() - 0.1, X[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+
+    Z = data_set.multi_dim_poly(np.c_[xx.ravel(), yy.ravel()]).flatten()
+    f = np.zeros(Z.shape)
+    f[Z > 0] = 1
+    f = f.reshape(xx.shape)
+    plt.title('True decision boundary  and sample points with noise ')
+    plt.plot(self.x[self.y == 0, 0].numpy(), self.x[self.y == 0,1].numpy(), 'bo', label='y=0')
+    plt.plot(self.x[self.y == 1, 0].numpy(), self.x[self.y == 1,1].numpy(), 'ro', label='y=1')
+    plt.contour(xx, yy, f,cmap=plt.cm.Paired)
+    plt.xlim(0,1)
+    plt.ylim(0,1)
+    plt.legend()
+
+  def multi_dim_poly(self, x):
+    x = np.matrix(x)
+    out = np.array(self.a[0] + (x) * self.a[1:3] + np.multiply(x[:, 0], x[:, 1]) * self.a[4] + np.multiply(x, x) * self.a[5:7])
+    out = np.array(out)
+    return out
+
+data_set = Data(noise_std=0.2)
+data_set.plot()
+
+torch.manual_seed(0)
+validation_set = Data(train=False)
+
+class Net(nn.Module):
+  def __init__(self,in_size,n_hidden,out_size,p=0):
+    super(Net,self).__init__()
+    self.drop = nn.Dropout(p=p)
+    self.linear1 = nn.Linear(in_size,n_hidden)
+    self.linear2 = nn.Linear(n_hidden,n_hidden)
+    self.linear3 = nn.Linear(n_hidden,out_size)
+
+  def forward(self,x):
+    x = F.relu(self.drop(self.linear1(x)))
+    x = F.relu(self.drop(self.linear2(x)))
+    x = self.linear3(x)
+    return x
+
+model = Net(2, 300, 2)
+model_drop = Net(2, 300, 2, p=0.5)
+
+model_drop.train()
+optimizer_ofit = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer_drop = torch.optim.Adam(model_drop.parameters(), lr=0.01)
+criterion = torch.nn.CrossEntropyLoss()
+
+LOSS = {}
+LOSS['training data no dropout'] = []
+LOSS['validation data no dropout'] = []
+LOSS['training data dropout'] = []
+LOSS['validation data dropout'] = []
+
+epochs = 500
+def train_model(epochs):
+  for epoch in range(epochs):
+    yhat = model(data_set.x)
+    yhat_drop = model_drop(data_set.x)
+    loss = criterion(yhat, data_set.y)
+    loss_drop = criterion(yhat_drop, data_set.y)
+
+    LOSS['training data no dropout'].append(loss.item())
+    LOSS['validation data no dropout'].append(criterion(model(validation_set.x), validation_set.y).item())
+    LOSS['training data dropout'].append(loss_drop.item())
+    model_drop.eval()
+    LOSS['validation data dropout'].append(criterion(model_drop(validation_set.x), validation_set.y).item())
+    model_drop.train()
+
+    optimizer_ofit.zero_grad()
+    optimizer_drop.zero_grad()
+    loss.backward()
+    loss_drop.backward()
+    optimizer_ofit.step()
+    optimizer_drop.step()
+
+train_model(epochs)
+
+model_drop.eval()
+plot_decision_regions_3class(data_set)
+plot_decision_regions_3class(data_set, model)
+plot_decision_regions_3class(data_set, model_drop)
+
+"""# Using Dropout in Regression"""
+
+import torch
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from torch.utils.data import Dataset, DataLoader
+
+torch.manual_seed(0)
+
+
+class Data(Dataset):
+  def __init__(self,N_SAMPLES=40,noise_std=1,train=True):
+    self.x = torch.linspace(-1,1,N_SAMPLES).view(-1,1)
+    self.f = self.x ** 2
+    if train != True:
+      torch.manual_seed(1)
+      self.y = self.f + noise_std * torch.randn(self.f.size())
+      self.y = self.y.view(-1,1)
+      torch.manual_seed(0)
+    else:
+      self.y = self.f+noise_std*torch.randn(self.f.size())
+      self.y = self.y.view(-1,1)
+
+  def __getitem__(self,index):
+    return self.x[index],self.y[index]
+
+  def __len__(self):
+    return self.len
+
+  def plot(self):
+    plt.figure(figsize=(6.1,10))
+    plt.scatter(self.x.numpy(),self.y.numpy(), label="Samples")
+    plt.plot(self.x.numpy(),self.f.numpy(),label='True Function',color='orange')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.xlim((-1, 1))
+    plt.ylim((-2, 2.5))
+    plt.legend(loc="best")
+    plt.show()
+
+data_set = Data()
+data_set.plot()
+validation_set = Data(train=False)
+
+class Net(nn.Module):
+  def __init__(self,in_size,n_hidden,out_size,p=0):
+    super(Net,self).__init__()
+    self.drop = nn.Dropout(p = p)
+    self.linear1 = nn.Linear(in_size,n_hidden)
+    self.linear2 = nn.Linear(n_hidden,n_hidden)
+    self.linear3 = nn.Linear(n_hidden,out_size)
+
+  def forward(self,x):
+    x = F.relu(self.drop(self.linear1(x)))
+    x = F.relu(self.drop(self.linear2(x)))
+    x = self.linear3(x)
+    return x
+
+model = Net(1, 300, 1)
+model_drop = Net(1, 300, 1, p=0.5)
+
+model_drop.train()
+
+optimizer_ofit = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer_drop = torch.optim.Adam(model_drop.parameters(), lr=0.01)
+criterion = torch.nn.MSELoss()
+LOSS={}
+LOSS['training data no dropout']=[]
+LOSS['validation data no dropout']=[]
+LOSS['training data dropout']=[]
+LOSS['validation data dropout']=[]
+
+epochs = 500
+def train_model(epochs):
+  for epoch in range(epochs):
+    yhat = model(data_set.x)
+    yhat_drop = model_drop(data_set.x)
+    loss = criterion(yhat,data_set.y)
+    loss_drop = criterion(yhat_drop,data_set.y)
+    LOSS['training data no dropout'].append(loss.item())
+    LOSS['validation data no dropout'].append(criterion(model(validation_set.x), validation_set.y).item())
+    LOSS['training data dropout'].append(loss_drop.item())
+    model_drop.eval()
+    LOSS['validation data dropout'].append(criterion(model_drop(validation_set.x), validation_set.y).item())
+    model_drop.train()
+
+    optimizer_ofit.zero_grad()
+    optimizer_drop.zero_grad()
+    loss.backward()
+    loss_drop.backward()
+    optimizer_ofit.step()
+    optimizer_drop.step()
+
+train_model(epochs)
+
+model_drop.eval()
+yhat = model(data_set.x)
+yhat_drop = model_drop(data_set.x)
+plt.figure(figsize=(6.1, 10))
+
+plt.scatter(data_set.x.numpy(), data_set.y.numpy(), label="Samples")
+plt.plot(data_set.x.numpy(), data_set.f.numpy(), label="True function", color='orange')
+plt.plot(data_set.x.numpy(), yhat.detach().numpy(), label='no dropout', c='r')
+plt.plot(data_set.x.numpy(), yhat_drop.detach().numpy(), label="dropout", c ='g')
+
+plt.xlabel("x")
+plt.ylabel("y")
+plt.xlim((-1, 1))
+plt.ylim((-2, 2.5))
+plt.legend(loc = "best")
+plt.show()
+plt.figure(figsize=(6.1, 10))
+for key, value in LOSS.items():
+    plt.plot(np.log(np.array(value)), label=key)
+    plt.legend()
+    plt.xlabel("iterations")
+    plt.ylabel("Log of cost or total loss")
+
+"""# Initialization with Same Weights"""
+
+import torch
+import torch.nn as nn
+from torch import sigmoid
+import matplotlib.pyplot as plt
+import numpy as np
+torch.manual_seed(0)
+
+def PlotStuff(X,Y,model,epoch,leg=True):
+  plt.plot(X.numpy(),model(X).detach().numpy(),label=('epoch'+str(epoch)))
+  plt.plot(X.numpy(),Y.numpy(),'r')
+  plt.xlabel('x')
+  if leg == True:
+    plt.legend()
+  else:
+    pass
+
+class Net(nn.Module):
+  def __init__(self,D_in,H,D_out):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(D_in,H)
+    self.linear2 = nn.Linear(H,D_out)
+    self.a1 = None
+    self.l1 = None
+    self.l2 = None
+
+  def forward(self,x):
+    self.l1 = self.linear1(x)
+    self.a1 = sigmoid(self.l1)
+    self.l2 = self.linear2(self.a1)
+    yhat = sigmoid(self.l2)
+    return yhat
+
+def train(Y,X,model,optimizer,criterion,epochs=1000):
+  cost = []
+  total = 0
+  for epoch in range(epochs):
+    total = 0
+    for y,x in zip(Y,X):
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      #optimizer.zero_grad() 因為初始化
+      loss.backward()
+      optimizer.step()
+      optimizer.zero_grad()
+      total += loss.item()
+    cost.append(total)
+    if epoch % 300 == 0:
+      PlotStuff(X, Y, model, epoch, leg=True)
+      plt.show()
+      model(X)
+      print(model.a1.detach())
+      print(model.a1.detach().numpy())
+      plt.scatter(model.a1.detach().numpy()[:, 0], model.a1.detach().numpy()[:, 1], c=Y.numpy().reshape(-1))
+      plt.title('activations')
+      plt.show()
+  return cost
+
+X = torch.arange(-20,20,1).view(-1,1).type(torch.FloatTensor)
+Y = torch.zeros(X.shape[0])
+Y[(X[:, 0] > -4) & (X[:, 0] < 4)] = 1.0
+
+def criterion_cross(outputs, labels): # bce loss binary cross entropy
+  out = -1 * torch.mean(labels * torch.log(outputs) + (1 - labels) * torch.log(1 - outputs))
+  return out
+
+D_in = 1
+H = 2
+D_out = 1
+learning_rate = 0.1
+model = Net(D_in, H, D_out)
+print(model.state_dict())
+# initialize weight
+model.state_dict()['linear1.weight'][0]=1.0
+model.state_dict()['linear1.weight'][1]=1.0
+model.state_dict()['linear1.bias'][0]=0.0
+model.state_dict()['linear1.bias'][1]=0.0
+model.state_dict()['linear2.weight'][0]=1.0
+model.state_dict()['linear2.bias'][0]=0.0
+model.state_dict()
+
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+
+cost_cross = train(Y, X, model, optimizer, criterion_cross, epochs=1000)
+plt.plot(cost_cross)
+plt.xlabel('epoch')
+plt.title('cross entropy loss')
+
+yhat=model(torch.tensor([[-2.0],[0.0],[2.0]]))
+yhat
+
+"""# Test Uniform, Default and Xavier Uniform Initialization on MNIST dataset with tanh activation"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import matplotlib.pylab as plt
+import numpy as np
+
+torch.manual_seed(0)
+
+class Net_Xaiver(nn.Module):
+  def __init__(self,Layers):
+    super(Net_Xaiver,self).__init__()
+    self.hidden = nn.ModuleList()
+
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      torch.nn.init.xavier_uniform_(linear.weight)
+      self.hidden.append(linear)
+
+  def forward(self,x):
+    L = len(self.hidden)
+    for (l,linear_transform) in zip(range(L),self.hidden):
+      if l < L-1:
+        x = torch.tanh(linear_transform(x)) # 運用tanh函數 (而非sigmoid)
+      else:
+        x = linear_transform(x)
+    return x
+
+class Net_Uniform(nn.Module):
+  def __init__(self,Layers):
+    super(Net_Uniform,self).__init__()
+    self.hidden = nn.ModuleList()
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      linear.weight.data.uniform_(0,1) #用常態分佈去初始化向量
+      self.hidden.append(linear)
+  def forward(self,x):
+    L = len(self.hidden)
+    for (l,linear_transform) in zip(range(L),self.hidden):
+      if l < L-1:
+        x = torch.tanh(linear_transform(x))
+      else:
+        x = linear_transform(x)
+    return x
+
+class Net(nn.Module):
+  def __init__(self,Layers):
+    super(Net,self).__init__()
+    self.hidden = nn.ModuleList()
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      self.hidden.append(linear)
+
+  def forward(self,x):
+    L = len(self.hidden)
+    for(l,linear_transform) in zip(range(L),self.hidden):
+      if l < L-1:
+        x = torch.tanh(linear_transform(x))
+      else:
+        x = linear_transform(x)
+    return x
+
+def train(model,criterion,train_loader,validation_loader,optimizer,epochs=100):
+  i = 0
+  loss_acc = {'training_loss':[], 'validation_accuracy':[]}
+  for epoch in range(epochs):
+    for i,(x,y) in enumerate(train_loader):
+      optimizer.zero_grad()
+      z = model(x.view(-1,28*28))
+      loss = criterion(z,y)
+      loss.backward()
+      optimizer.step()
+      optimizer.zero_grad()
+      loss_acc['training_loss'].append(loss.data.item())
+    correct = 0
+    for x,y in validation_loader:
+      yhat = model(x.view(-1,28*28))
+      _,label = torch.max(yhat,1)
+      correct += (label==y).sum().item()
+    accuracy = 100 * (correct / len(validation_dataset))
+    loss_acc['validation_accuracy'].append(accuracy)
+  return loss_acc
+
+train_dataset = dsets.MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
+validation_dataset = dsets.MNIST(root='./data', train=False, download=True, transform=transforms.ToTensor())
+
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=2000, shuffle=True)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=5000, shuffle=False)
+
+criterion = nn.CrossEntropyLoss()
+input_dim = 28 * 28
+output_dim = 10
+layers = [input_dim, 100, 10, 100, 10, 100, output_dim]
+epochs = 15
+
+model = Net(layers)
+learning_rate = 0.01
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+training_results = train(model, criterion, train_loader, validation_loader, optimizer, epochs=epochs)
+
+model_Xavier = Net_Xaiver(layers)
+optimizer = torch.optim.SGD(model_Xavier.parameters(), lr=learning_rate)
+training_results_Xavier = train(model_Xavier, criterion, train_loader, validation_loader, optimizer, epochs=epochs)
+
+model_Uniform = Net_Uniform(layers)
+optimizer = torch.optim.SGD(model_Uniform.parameters(), lr=learning_rate)
+training_results_Uniform = train(model_Uniform, criterion, train_loader, validation_loader, optimizer, epochs=epochs)
+
+plt.plot(training_results_Xavier['training_loss'], label='Xavier')
+plt.plot(training_results['training_loss'], label='Default')
+plt.plot(training_results_Uniform['training_loss'], label='Uniform')
+plt.ylabel('loss')
+plt.xlabel('iteration ')
+plt.title('training loss iterations')
+plt.legend()
+
+plt.plot(training_results_Xavier['validation_accuracy'], label='Xavier')
+plt.plot(training_results['validation_accuracy'], label='Default')
+plt.plot(training_results_Uniform['validation_accuracy'], label='Uniform')
+plt.ylabel('validation accuracy')
+plt.xlabel('epochs')
+plt.legend()
+
+"""# Test Uniform, Default and He Initialization on MNIST Dataset with Relu Activation"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import torch.nn.functional as F
+import matplotlib.pylab as plt
+import numpy as np
+
+torch.manual_seed(0)
+
+class Net_He(nn.Module):
+  def __init__(self,Layers):
+    super(Net_He,self).__init__()
+    self.hidden = nn.ModuleList()
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      torch.nn.init.kaiming_uniform_(linear.weight, nonlinearity='relu')
+      self.hidden.append(linear)
+
+  def forward(self,x):
+    L = len(self.hidden)
+    for(l,linear_transform) in zip(range(L),self.hidden):
+      if l < L-1:
+        x = F.relu(linear_transform(x))
+      else:
+        x = linear_transform(x)
+    return x
+
+class Net_Uniform(nn.Module):
+  def __init__(self,Layers):
+    super(Net_Uniform,self).__init__()
+    self.hidden = nn.ModuleList()
+
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      linear.weight.data.uniform_(0,1)
+      self.hidden.append(linear)
+
+  def forward(self,x):
+    L = len(self.hidden)
+    for (l,linear_transform) in zip(range(L),self.hidden):
+      if l<L-1:
+        x = F.relu(linear_transform(x))
+      else:
+        x = linear_transform(x)
+    return x
+
+class Net(nn.Module):
+  def __init__(self,Layers):
+    super(Net,self).__init__()
+    self.hidden = nn.ModuleList()
+
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      self.hidden.append(linear)
+
+  def forward(self,x):
+    L = len(self.hidden)
+    for (l,linear_transform) in zip(range(L),self.hidden):
+      if l < L - 1:
+        x = F.relu(linear_transform(x))
+      else:
+        x = linear_transform(x)
+    return x
+
+model = Net(layers)
+learning_rate = 0.01
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+training_results = train(model, criterion, train_loader,validation_loader, optimizer, epochs=30)
+
+model_He = Net_He(layers)
+optimizer = torch.optim.SGD(model_He.parameters(), lr=learning_rate)
+training_results_He = train(model_He, criterion, train_loader, validation_loader, optimizer, epochs=30)
+
+model_Uniform = Net_Uniform(layers)
+optimizer = torch.optim.SGD(model_Uniform.parameters(), lr=learning_rate)
+training_results_Uniform = train(model_Uniform, criterion, train_loader, validation_loader, optimizer, epochs=30)
+
+plt.plot(training_results_He['training_loss'], label='He')
+plt.plot(training_results['training_loss'], label='Default')
+plt.plot(training_results_Uniform['training_loss'], label='Uniform')
+plt.ylabel('loss')
+plt.xlabel('iteration ')
+plt.title('training loss iterations')
+plt.legend()
+
+plt.plot(training_results_He['validation_accuracy'], label='He')
+plt.plot(training_results['validation_accuracy'], label='Default')
+plt.plot(training_results_Uniform['validation_accuracy'], label='Uniform')
+plt.ylabel('validation accuracy')
+plt.xlabel('epochs ')
+plt.legend()
+plt.show()
+
+"""# Neural Networks with Momentum"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from matplotlib.colors import ListedColormap
+from torch.utils.data import Dataset, DataLoader
+
+torch.manual_seed(1)
+np.random.seed(1)
+
+def plot_decision_regions_3class(model,data_set):
+  cmap_light = ListedColormap(['#FFAAAA', '#AAFFAA','#00AAFF'])
+  cmap_bold = ListedColormap(['#FF0000', '#00FF00','#00AAFF'])
+  X = data_set.x.numpy()
+  y = data_set.y.numpy()
+  h = 0.02
+  x_min, x_max = X[:, 0].min() - 0.1 , X[:, 0].max() + 0.1
+  y_min, y_max = X[:, 1].min() - 0.1 , X[:, 1].max() + 0.1
+  xx,yy = np.meshgrid(np.arange(x_min, x_max, h),np.arange(y_min, y_max, h))
+  XX=torch.torch.Tensor(np.c_[xx.ravel(), yy.ravel()])
+  _,yhat=torch.max(model(XX),1)
+  yhat=yhat.numpy().reshape(xx.shape)
+  plt.pcolormesh(xx, yy, yhat, cmap=cmap_light)
+  plt.plot(X[y[:]==0,0], X[y[:]==0,1], 'ro', label='y=0')
+  plt.plot(X[y[:]==1,0], X[y[:]==1,1], 'go', label='y=1')
+  plt.plot(X[y[:]==2,0], X[y[:]==2,1], 'o', label='y=2')
+  plt.title("decision region")
+  plt.legend()
+  plt.show()
+
+
+class Data(Dataset):
+  def __init__(self,K=3,N=500):
+    D = 2
+    X = np.zeros((N * K, D)) # data matrix (each row = single example)
+    y = np.zeros(N * K, dtype='uint8') # class labels
+    for j in range(K):
+      ix = range(N * j, N * (j + 1))
+      r = np.linspace(0.0,1,N)
+      t = np.linspace(j * 4, (j + 1) * 4, N) + np.random.randn(N) * 0.2
+      X[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
+      y[ix] = j
+
+    self.y = torch.from_numpy(y).type(torch.LongTensor)
+    self.x = torch.from_numpy(X).type(torch.FloatTensor)
+    self.len = y.shape[0]
+
+  def __getitem__(self, index):
+    return self.x[index], self.y[index]
+
+    # Get Length
+  def __len__(self):
+    return self.len
+
+    # Plot the diagram
+  def plot_data(self):
+    plt.plot(self.x[self.y[:] == 0, 0].numpy(), self.x[self.y[:] == 0, 1].numpy(), 'o', label="y=0")
+    plt.plot(self.x[self.y[:] == 1, 0].numpy(), self.x[self.y[:] == 1, 1].numpy(), 'ro', label="y=1")
+    plt.plot(self.x[self.y[:] == 2, 0].numpy(),self.x[self.y[:] == 2, 1].numpy(), 'go',label="y=2")
+    plt.legend()
+
+
+class Net(nn.Module):
+  def __init__(self,Layers):
+    super(Net,self).__init__()
+    self.hidden = nn.ModuleList()
+    for input_size,output_size in zip(Layers,Layers[1:]):
+      linear = nn.Linear(input_size,output_size)
+      self.hidden.append(linear)
+
+  def forward(self,x):
+    L = len(self.hidden)
+    for(l,linear_transform) in zip(range(L),self.hidden):
+      if l < L-1:
+        x = F.relu(linear_transform(x))
+      else:
+        x = linear_transform(x)
+    return x
+
+def accuracy(model, data_set):
+    _, yhat = torch.max(model(data_set.x), 1)
+    return (yhat == data_set.y).numpy().mean()
+
+def train(data_set,model,criterion,train_loader,optimizer,epochs=100):
+  LOSS = []
+  ACC = []
+  for epoch in range(epochs):
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      yhat = model(x)
+      loss = criterion(yhat,y)
+      loss.backward()
+      optimizer.step()
+      optimizer.zero_grad()
+    LOSS.append(loss.item())
+    ACC.append(accuracy(model,data_set))
+
+  results ={"Loss":LOSS, "Accuracy":ACC}
+  fig,ax1 = plt.subplots()
+  color = 'tab:red'
+  ax1.plot(LOSS,color=color)
+  ax1.set_xlabel('epoch', color=color)
+  ax1.set_ylabel('total loss', color=color)
+  ax1.tick_params(axis = 'y', color=color)
+
+  ax2 = ax1.twinx()
+  color = 'tab:blue'
+  ax2.set_ylabel('accuracy', color=color)
+  ax2.plot(ACC, color=color)
+  ax2.tick_params(axis='y', color=color)
+  fig.tight_layout()
+  plt.show()
+  return results
+
+data_set = Data()
+data_set.plot_data()
+data_set.y = data_set.y.view(-1)
+Results = {"momentum 0": {"Loss": 0, "Accuracy:": 0}, "momentum 0.1": {"Loss": 0, "Accuracy:": 0}}
+Layers = [2, 50, 3]
+model = Net(Layers)
+learning_rate = 0.10
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+train_loader = DataLoader(dataset=data_set, batch_size=20)
+criterion = nn.CrossEntropyLoss()
+
+Results["momentum 0"] = train(data_set, model, criterion, train_loader, optimizer, epochs=100)
+plot_decision_regions_3class(model, data_set)
+Layers = [2, 50, 3]
+model = Net(Layers)
+learning_rate = 0.10
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.1) ####
+train_loader = DataLoader(dataset=data_set, batch_size=20)
+criterion = nn.CrossEntropyLoss()
+Results["momentum 0.1"] = train(data_set, model, criterion, train_loader, optimizer, epochs=100)
+plot_decision_regions_3class(model, data_set)
+
+
+Layers = [2, 50, 3]
+model = Net(Layers)
+learning_rate = 0.10
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.2) #####
+train_loader = DataLoader(dataset=data_set, batch_size=20)
+criterion = nn.CrossEntropyLoss()
+Results["momentum 0.2"] = train(data_set, model, criterion, train_loader, optimizer, epochs=100)
+plot_decision_regions_3class(model, data_set)
+
+Layers = [2, 50, 3]
+model = Net(Layers)
+learning_rate = 0.10
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.4)
+train_loader = DataLoader(dataset=data_set, batch_size=20)
+criterion = nn.CrossEntropyLoss()
+Results["momentum 0.4"] = train(data_set, model, criterion, train_loader, optimizer, epochs=100)
+plot_decision_regions_3class(model, data_set)
+
+Layers = [2, 50, 3]
+model = Net(Layers)
+learning_rate = 0.10
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.5)
+train_loader = DataLoader(dataset=data_set, batch_size=20)
+criterion = nn.CrossEntropyLoss()
+Results["momentum 0.5"] = train(data_set, model, criterion, train_loader, optimizer, epochs=100)
+plot_decision_regions_3class(model,data_set)
+
+for key, value in Results.items():
+    plt.plot(value['Loss'],label=key)
+    plt.legend()
+    plt.xlabel('epoch')
+    plt.ylabel('Total Loss or Cost')
+
+
+for key, value in Results.items():
+    plt.plot(value['Accuracy'],label=key)
+    plt.legend()
+    plt.xlabel('epoch')
+    plt.ylabel('Accuracy')
 
 
 
+"""# Batch Normalization with the MNIST Dataset"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import torch.nn.functional as F
+import matplotlib.pylab as plt
+import numpy as np
+torch.manual_seed(0)
+
+class NetBatchNorm(nn.Module):
+  def __init__(self,in_size,n_hidden1,n_hidden2,out_size):
+    super(NetBatchNorm,self).__init__()
+    self.linear1 = nn.Linear(in_size,n_hidden1)
+    self.linear2 = nn.Linear(n_hidden1,n_hidden2)
+    self.linear3 = nn.Linear(n_hidden2,out_size)
+    self.bn1 = nn.BatchNorm1d(n_hidden1)
+    self.bn2 = nn.BatchNorm1d(n_hidden2)
+
+  def forward(self,x):
+    x = self.bn1(torch.sigmoid(self.linear1(x)))
+    x = self.bn2(torch.sigmoid(self.linear2(x)))
+    x = self.linear3(x)
+    return x
+
+  def activation(self,x):
+    out = []
+    z1 = self.bn1(self.linear1(x))
+    out.append(z1.detach().numpy().reshape(-1))
+    a1 = torch.sigmoid(z1)
+    out.append(a1.detach().numpy().reshape(-1).reshape(-1))
+    z2 = self.bn2(self.linear2(a1))
+    out.append(z2.detach().numpy().reshape(-1))
+    a2 = torch.sigmoid(z2)
+    out.append(a2.detach().numpy().reshape(-1))
+    return out
+
+class Net(nn.Module):
+  def __init__(self,in_size,n_hidden1,n_hidden2,out_size):
+    super(Net,self).__init__()
+    self.linear1 = nn.Linear(in_size,n_hidden1)
+    self.linear2 = nn.Linear(n_hidden1,n_hidden2)
+    self.linear3 = nn.Linear(n_hidden2,out_size)
+
+  def forward(self,x):
+    x = torch.sigmoid(self.linear1(x))
+    x = torch.sigmoid(self.linear2(x))
+    x = self.linear3(x)
+    return x
+
+  def activation(self,x):
+    out = []
+    z1 = self.linear1(x)
+    out.append(z1.detach().numpy().reshape(-1))
+    a1 = torch.sigmoid(z1)
+    out.append(a1.detach().numpy().reshape(-1).reshape(-1))
+    z2 = self.linear2(a1)
+    out.append(z2.detach().numpy().reshape(-1))
+    a2 = torch.sigmoid(z2)
+    out.append(a2.detach().numpy().reshape(-1))
+    return out
+
+def train(model,criterion,train_loader,validation_loader,optimizer,epochs=100):
+  i = 0
+  useful_stuff = {'training_loss':[],'validation_accuracy':[]}
+
+  for epoch in range(epochs):
+    for i,(x,y) in enumerate(train_loader):
+      model.train()
+      optimizer.zero_grad()
+      z = model(x.view(-1,28*28))
+      loss = criterion(z,y)
+      loss.backward()
+      optimizer.step()
+      useful_stuff['training_loss'].append(loss.data.item())
+    correct = 0
+    for x,y in validation_loader:
+      model.eval()
+      yhat = model(x.view(-1,28*28))
+      _,label = torch.max(yhat,1)
+      correct += (label==y).sum().item()
+
+    accuracy = 100 * (correct/len(validation_dataset))
+    useful_stuff['validation_accuracy'].append(accuracy)
+  return useful_stuff
+
+train_dataset = dsets.MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
+validation_dataset = dsets.MNIST(root='./data', train=False, download=True, transform=transforms.ToTensor())
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=2000, shuffle=True)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=5000, shuffle=False)
+criterion = nn.CrossEntropyLoss()
+
+input_dim = 28 * 28
+hidden_dim = 100
+output_dim = 10
+model_norm  = NetBatchNorm(input_dim, hidden_dim, hidden_dim, output_dim)
+optimizer = torch.optim.Adam(model_norm.parameters(), lr = 0.1)
+
+training_results_Norm=train(model_norm , criterion, train_loader, validation_loader, optimizer, epochs=5)
+
+model = Net(input_dim, hidden_dim, hidden_dim, output_dim)
+optimizer = torch.optim.Adam(model.parameters(), lr = 0.1)
+training_results = train(model, criterion, train_loader, validation_loader, optimizer, epochs=5)
+
+model.eval()
+model_norm.eval()
+out=model.activation(validation_dataset[0][0].reshape(-1,28*28))
+plt.hist(out[2],label='model with no batch normalization' )
+out_norm=model_norm.activation(validation_dataset[0][0].reshape(-1,28*28))
+plt.hist(out_norm[2],label='model with normalization')
+plt.xlabel("activation ")
+plt.legend()
+plt.show()
+
+plt.plot(training_results['training_loss'], label='No Batch Normalization')
+plt.plot(training_results_Norm['training_loss'], label='Batch Normalization')
+plt.ylabel('Cost')
+plt.xlabel('iterations ')
+plt.legend()
+plt.show()
+
+plt.plot(training_results['validation_accuracy'],label='No Batch Normalization')
+plt.plot(training_results_Norm['validation_accuracy'],label='Batch Normalization')
+plt.ylabel('validation accuracy')
+plt.xlabel('epochs ')
+plt.legend()
+plt.show()
+
+
+
+"""# Activation function and Maxpooling"""
+
+import torch
+import torch.nn as nn
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import ndimage, misc
+
+conv = nn.Conv2d(in_channels=1,out_channels=1,kernel_size=3)
+Gx = torch.tensor([[1.0,0,-1.0],[2.0,0,-2.0],[1.0,0,-1.0]])
+conv.state_dict()['weight'][0][0] = Gx
+conv.state_dict()['bias'][0]=0.0
+image = torch.zeros(1,1,5,5)
+image[0,0,:,2]=1
+print(image)
+Z=conv(image)
+A=torch.relu(Z)
+relu = nn.ReLU()
+relu(Z)
+
+image1=torch.zeros(1,1,4,4)
+image1[0,0,0,:]=torch.tensor([1.0,2.0,3.0,-4.0])
+image1[0,0,1,:]=torch.tensor([0.0,2.0,-3.0,0.0])
+image1[0,0,2,:]=torch.tensor([0.0,2.0,3.0,1.0])
+max1=torch.nn.MaxPool2d(2,stride=1)
+max1(image1)
+
+max1=torch.nn.MaxPool2d(2)
+max1(image1)
+
+"""# Multiple Input and Output Channels"""
+
+import torch
+import torch.nn as nn
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import ndimage, misc
+
+conv1 = nn.Conv2d(in_channels=1,out_channels=3,kernel_size=3)
+Gx = torch.tensor([[1.0,0,-1.0],[2.0,0,-2.0],[1.0,0.0,-1.0]])
+Gy=torch.tensor([[1.0,2.0,1.0],[0.0,0.0,0.0],[-1.0,-2.0,-1.0]])
+
+conv1.state_dict()['weight'][0][0] = Gx
+conv1.state_dict()['weight'][1][0] = Gy
+conv1.state_dict()['weight'][2][0] = torch.ones(3,3)
+
+conv1.state_dict()['bias'][:]=torch.tensor([0.0,0.0,0.0])
+conv1.state_dict()['bias']
+
+for x in conv1.state_dict()['weight']:
+  print(x)
+
+image = torch.zeros(1,1,5,5)
+image[0,0,:,2] = 1
+print(image)
+plt.imshow(image[0,0,:,:].numpy(), interpolation='nearest', cmap=plt.cm.gray)
+plt.colorbar()
+plt.show()
+
+out=conv1(image)
+for channel,image in enumerate(out[0]):
+  plt.imshow(image.detach().numpy(), interpolation='nearest', cmap=plt.cm.gray)
+  print(image)
+  plt.title("channel {}".format(channel))
+  plt.colorbar()
+  plt.show()
+
+image1=torch.zeros(1,1,5,5)
+image1[0,0,2,:]=1
+print(image1)
+plt.imshow(image1[0,0,:,:].detach().numpy(), interpolation='nearest', cmap=plt.cm.gray)
+plt.show()
+
+out1=conv1(image1)
+for channel,image in enumerate(out1[0]):
+  plt.imshow(image.detach().numpy(), interpolation='nearest', cmap=plt.cm.gray)
+  print(image)
+  plt.title("channel {}".format(channel))
+  plt.colorbar()
+  plt.show()
+
+image2=torch.zeros(1,2,5,5)
+image2[0,0,2,:]=-2
+image2[0,1,2,:]=1
+image2
+
+conv3 = nn.Conv2d(in_channels=2, out_channels=1,kernel_size=3)
+Gx1=torch.tensor([[0.0,0.0,0.0],[0,1.0,0],[0.0,0.0,0.0]])
+conv3.state_dict()['weight'][0][0]=1*Gx1
+conv3.state_dict()['weight'][0][1]=-2*Gx1
+conv3.state_dict()['bias'][:]=torch.tensor([0.0])
+conv3.state_dict()['weight']
+
+conv4 = nn.Conv2d(in_channels=2, out_channels=3,kernel_size=3)
+conv4.state_dict()['weight'][0][0]=torch.tensor([[0.0,0.0,0.0],[0,0.5,0],[0.0,0.0,0.0]])
+conv4.state_dict()['weight'][0][1]=torch.tensor([[0.0,0.0,0.0],[0,0.5,0],[0.0,0.0,0.0]])
+
+
+conv4.state_dict()['weight'][1][0]=torch.tensor([[0.0,0.0,0.0],[0,1,0],[0.0,0.0,0.0]])
+conv4.state_dict()['weight'][1][1]=torch.tensor([[0.0,0.0,0.0],[0,-1,0],[0.0,0.0,0.0]])
+
+conv4.state_dict()['weight'][2][0]=torch.tensor([[1.0,0,-1.0],[2.0,0,-2.0],[1.0,0.0,-1.0]])
+conv4.state_dict()['weight'][2][1]=torch.tensor([[1.0,2.0,1.0],[0.0,0.0,0.0],[-1.0,-2.0,-1.0]])
+
+conv4.state_dict()['bias'][:]=torch.tensor([0.0,0.0,0.0])
+
+image4=torch.zeros(1,2,5,5)
+image4[0][0]=torch.ones(5,5)
+image4[0][1][2][2]=1
+for channel,image in enumerate(image4[0]):
+  plt.imshow(image.detach().numpy(), interpolation='nearest', cmap=plt.cm.gray)
+  print(image)
+  plt.title("channel {}".format(channel))
+  plt.colorbar()
+  plt.show()
+z=conv4(image4)
+z
+
+"""# Convolutional Neural Network Simple example"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+torch.manual_seed(4)
+
+def plot_channels(W):
+  n_out = W.shape[0]
+  n_in = W.shape[1]
+  w_min = W.min().item()
+  w_max = W.max().item()
+  fig, axes = plt.subplots(n_out,n_in)
+  fig.subplots_adjust(hspace = 0.1)
+  out_index = 0
+  in_index = 0
+  for ax in axes.flat:
+    if in_index > n_in-1:
+      out_index = out_index + 1
+      in_index = 0
+    ax.imshow(W[out_index,in_index,:,:], vmin=w_min, vmax=w_max, cmap='seismic')
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    in_index=in_index+1
+
+  plt.show()
 
 
 
