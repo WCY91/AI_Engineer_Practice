@@ -2572,7 +2572,7 @@ import numpy as np
 
 torch.manual_seed(4)
 
-def plot_channels(W):
+def plot_channels(W): # 顯示weight
   n_out = W.shape[0]
   n_in = W.shape[1]
   w_min = W.min().item()
@@ -2592,7 +2592,750 @@ def plot_channels(W):
 
   plt.show()
 
+def show_data(dataset,sample):
+  plt.imshow(dataset.x[sample,0,:,:].numpy(),cmap='gray')
+  plt.title('y='+str(dataset.y[sample].item()))
+  plt.show()
+
+from torch.utils.data import Dataset, DataLoader
+class Data(Dataset):
+  def __init__(self,N_images=100,offset=0,p=0.9,train=False):
+    if train==True:
+      np.random.seed(1)
+
+    N_images = 2*(N_images//2)
+    images = np.zeros((N_images,1,11,11))
+    start1 = 3
+    start2 = 1
+    self.y = torch.zeros(N_images).type(torch.long)
+
+    for n in range(N_images):
+      if offset > 0:
+        low = int(np.random.randint(low=start1, high=start1+offset, size=1))
+        high = int(np.random.randint(low=start2, high=start2+offset, size=1))
+      else:
+        low = 4
+        high = 1
+      if n <= N_images//2:
+        self.y[n]=0
+        images[n,0,high:high+9,low:low+3]= np.random.binomial(1, p, (9,3))
+      elif n > N_images//2:
+        self.y[n] =1
+        images[n,0,low:low+3,high:high+9] = np.random.binomial(1, p, (3,9))
+
+    self.x=torch.from_numpy(images).type(torch.FloatTensor)
+    self.len=self.x.shape[0]
+    del(images)
+    np.random.seed(0)
+
+  def __getitem__(self,index):
+    return self.x[index], self.y[index]
+
+  def __len__(self):
+    return self.len
+
+def plot_activations(A,number_rows=1,name=""):
+  A = A[0,:,:,:].detach().numpy()
+  n_activations = A.shape[0]
+
+  print(n_activations)
+  A_min = A.min().item()
+  A_max = A.max().item()
+
+  if n_activations==1:
+    plt.imshow(A[0,:], vmin=A_min, vmax=A_max, cmap='seismic')
+  else:
+    fig,axes = plt.subplots(number_rows,n_activations // number_rows)
+    fig.subplots_adjust(hspace=0.4)
+    for i,ax in enumerate(axes.flat): #ax.flat 是 Matplotlib 中的屬性，用於將子圖 (Axes) 的多維結構 展平成一維迭代器。
+      if i < n_activations:
+        ax.set_xlabel( "activation:{0}".format(i+1))
+        ax.imshow(A[i,:], vmin=A_min, vmax=A_max, cmap='seismic')
+        ax.set_xticks([]) # 將子圖的 x 軸刻度標記設置為空（隱藏 x 軸上的刻度）。
+        ax.set_yticks([])
+  plt.show()
+
+def conv_output_shape(h_w,kernel_size=1,stride=1,pad=0,dilation=1):
+  from math import floor
+  if type(kernel_size) is not tuple:
+    kernel_size = (kernel_size,kernel_size)
+
+  h = floor( ((h_w[0] + (2 * pad) - ( dilation * (kernel_size[0] - 1) ) - 1 )/ stride) + 1)
+  w = floor(((h_w[1] + (2 * pad) - ( dilation * (kernel_size[1] - 1) ) - 1 )/ stride) + 1)
+  return h,w
+
+N_images = 10000
+train_dataset = Data(N_images)
+validation_dataset=Data(N_images=1000,train=False)
+
+show_data(train_dataset,0)
+show_data(train_dataset,N_images//2+2)
+
+out = conv_output_shape((11,11),kernel_size=2,stride=1,pad=0,dilation=1)
+print(out)
+
+out1 = conv_output_shape(out,kernel_size=2,stride=1,pad=0,dilation=1)
+print(out1)
+
+out2 = conv_output_shape(out1,kernel_size=2,stride=1,pad=0,dilation=1)
+print(out2)
+
+out3 = conv_output_shape(out2,kernel_size=2,stride=1,pad=0,dilation=1)
+print(out3)
+
+class CNN(nn.Module):
+  def __init__(self,out_1=2,out_2=1):
+    super(CNN,self).__init__()
+    self.cnn1 = nn.Conv2d(in_channels=1,out_channels=out_1,kernel_size=2,padding=0)
+    self.maxpool1 = nn.MaxPool2d(kernel_size=2,stride=1)
+
+    self.cnn2 = nn.Conv2d(in_channels=out_1,out_channels=out_2,kernel_size=2,stride=1,padding=0)
+    self.maxpool2 = nn.MaxPool2d(kernel_size=2,stride=1)
+
+    self.fc1=nn.Linear(out_2*7*7,2) #reshape and fcn 兩個類別
+
+  def forward(self,x):
+    x = self.cnn1(x)
+    x = torch.relu(x)
+    x = self.maxpool1(x)
+    x = self.cnn2(x)
+    x = torch.relu(x)
+    x = self.maxpool2(x)
+    x=x.view(x.size(0),-1)
+    x = self.fc1(x)
+    return x
+
+  def activations(self,x):  #outputs activation this is not necessary just for fun
+    z1 = self.cnn1(x)
+    a1 = torch.relu(z1)
+    out = self.maxpool1(a1)
+
+    z2 = self.cnn2(out)
+    a2 = torch.relu(z2)
+    out = self.maxpool2(a2)
+    out=out.view(out.size(0),-1)
+    return z1,a1,z2,a2,out
 
 
+model=CNN(2,1)
+model.state_dict()
 
+plot_channels(model.state_dict()['cnn1.weight'])
+plot_channels(model.state_dict()['cnn2.weight'])
+criterion=nn.CrossEntropyLoss()
+learning_rate=0.001
+
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+train_loader=torch.utils.data.DataLoader(dataset=train_dataset,batch_size=10)
+validation_loader=torch.utils.data.DataLoader(dataset=validation_dataset,batch_size=20)
+
+n_epochs = 10
+cost_list = []
+accuracy_list = []
+N_test = len(validation_dataset)
+cost = 0
+for epoch in range(n_epochs):
+  cost = 0
+  for x,y in train_loader:
+    optimizer.zero_grad()
+    z = model(x)
+    loss = criterion(z,y)
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+    cost+=loss.item()
+  cost_list.append(cost)
+
+  correct = 0
+  for x_test,y_test in validation_loader:
+    z = model(x_test)
+    _,yhat = torch.max(z.data,1)
+    correct += (yhat==y_test).sum().item()
+  accuracy = correct/N_test
+  accuracy_list.append(accuracy)
+
+fig,ax1 = plt.subplots()
+color = 'tab:red'
+
+ax1.plot(cost_list,color=color)
+ax1.set_xlabel('epoch',color=color)
+ax1.set_ylabel('total_loss',color=color)
+ax1.tick_params(axis='y', color=color)
+
+ax2 = ax1.twinx()
+color = 'tab:blue'
+ax2.set_ylabel('accuracy', color=color)
+ax2.plot( accuracy_list, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+fig.tight_layout()
+
+plot_channels(model.state_dict()['cnn1.weight'])
+plot_channels(model.state_dict()['cnn2.weight'])
+out=model.activations(train_dataset[N_images//2+2][0].view(1,1,11,11))
+out=model.activations(train_dataset[0][0].view(1,1,11,11))
+
+plot_activations(out[0],number_rows=1,name=" feature map")
+plt.show()
+plot_activations(out[2],number_rows=1,name="2nd feature map")
+plt.show()
+plot_activations(out[3],number_rows=1,name="first feature map")
+plt.show()
+
+out1=out[4][0].detach().numpy()
+out0=model.activations(train_dataset[100][0].view(1,1,11,11))[4][0].detach().numpy()
+plt.subplot(2, 1, 1)
+plt.plot( out1, 'b')
+plt.title('Flatted Activation Values  ')
+plt.ylabel('Activation')
+plt.xlabel('index')
+plt.subplot(2, 1, 2)
+plt.plot(out0, 'r')
+plt.xlabel('index')
+plt.ylabel('Activation')
+
+"""# Convolutional Neural Network with Small Images"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import matplotlib.pylab as plt
+import numpy as np
+
+def plot_channels(W):
+  n_out = W.shape[0]
+  n_in = W.shape[1]
+  w_min = W.min().item()
+  w_max = W.max().item()
+  fig,axes = plt.subplots(n_out,n_in)
+  fig.subplots_adjust(hspace=0.1)
+  out_index = 0
+  in_index = 0
+
+  for ax in axes.flat:
+    if in_index > n_in-1:
+      out_index = out_index + 1
+      in_index = 0
+    ax.imshow(W[out_index, in_index, :, :], vmin=w_min, vmax=w_max, cmap='seismic')
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    in_index = in_index + 1
+
+  plt.show()
+
+def plot_parameters(W,number_rows=1,name="",i=0):
+  W = W.data[:,i,:,:]
+  n_filters = W.shape[0]
+  w_min = W.min().item()
+  w_max = W.max().item()
+  fig,axes = plt.subplots(number_rows,n_filters // number_rows)
+  fig.subplots_adjust(hspace=0.4)
+
+  for i,ax in enumerate(axes.flat):
+    if i < n_filters:
+      ax.set_xlabel("kernel:{0}".format(i + 1))
+      ax.imshow(W[i, :], vmin=w_min, vmax=w_max, cmap='seismic')
+      ax.set_xticks([])
+      ax.set_yticks([])
+  plt.suptitle(name, fontsize=10)
+  plt.show()
+
+def plot_activations(A,number_rows=1,name="",i=0):
+  A = A[0,:,:,:].detach().numpy()
+  n_activations = A.shape[0]
+  A_min = A.min().item()
+  A_max = A.max().item()
+  fig, axes = plt.subplots(number_rows, n_activations // number_rows)
+  fig.subplots_adjust(hspace = 0.4)
+
+  for i,ax in enumerate(axes.flat):
+    if i < n_activations:
+      ax.set_xlabel("activation:{0}".format(i + 1))
+      ax.imshow(A[i, :], vmin=A_min, vmax=A_max, cmap='seismic')
+      ax.set_xticks([])
+      ax.set_yticks([])
+  plt.show()
+
+IMAGE_SIZE = 16
+
+composed = transforms.Compose([transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), transforms.ToTensor()])
+def show_data(data_sample):
+  plt.imshow(data_sample[0].numpy().reshape(IMAGE_SIZE, IMAGE_SIZE), cmap='gray')
+  plt.title('y = '+ str(data_sample[1]))
+
+train_dataset = dsets.MNIST(root='./data', train=True, download=True, transform=composed)
+validation_dataset = dsets.MNIST(root='./data', train=False, download=True, transform=composed)
+
+class CNN(nn.Module):
+  def __init__(self,out_1 = 16,out_2=32):
+    super(CNN,self).__init__()
+    self.cnn1 = nn.Conv2d(in_channels=1,out_channels=out_1,kernel_size=5,padding=2)
+    self.maxpool1 = nn.MaxPool2d(kernel_size=2)
+    self.cnn2 = nn.Conv2d(in_channels=out_1,out_channels=out_2,kernel_size=5,padding=2)
+    self.maxpool2 = nn.MaxPool2d(kernel_size=2)
+    self.fc1 = nn.Linear(out_2*4*4,10)
+
+  def forward(self,x):
+    x = self.cnn1(x)
+    x = torch.relu(x)
+    x = self.maxpool1(x)
+    x = self.cnn2(x)
+    x = torch.relu(x)
+    x = self.maxpool2(x)
+    x = x.view(x.size(0),-1)
+    x = self.fc1(x)
+    return x
+
+  def activations(self,x):
+    z1 = self.cnn1(x)
+    a1 = torch.relu(z1)
+    out = self.maxpool1(a1)
+
+    z2 = self.cnn2(out)
+    a2 = torch.relu(z2)
+    out1 = self.maxpool2(a2)
+    out = out.view(out.size(0),-1)
+    return z1,a1,z2,a2,out1,out
+
+model = CNN(out_1=16,out_2=32)
+
+plot_parameters(model.state_dict()['cnn1.weight'], number_rows=4, name="1st layer kernels before training ")
+plot_parameters(model.state_dict()['cnn2.weight'], number_rows=4, name='2nd layer kernels before training' )
+
+criterion = nn.CrossEntropyLoss()
+learning_rate = 0.1
+optimizer = torch.optim.SGD(model.parameters(),lr=learning_rate)
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=100)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=5000)
+
+n_epochs = 3
+cost_list = []
+accuracy_list = []
+N_test = len(validation_dataset)
+COST = 0
+
+def train_model(n_epochs):
+  for epoch in range(n_epochs):
+    COST = 0
+    for x,y in train_loader:
+      optimizer.zero_grad()
+      z = model(x)
+      loss = criterion(z,y)
+      loss.backward()
+      optimizer.step()
+      COST += loss.data
+
+    cost_list.append(COST)
+    correct = 0
+    for x_test,y_test in validation_loader:
+      z = model(x_test)
+      _,yhat = torch.max(z.data, 1)
+      correct += (yhat == y_test).sum().item()
+    accuracy = correct / N_test
+    accuracy_list.append(accuracy)
+
+train_model(n_epochs)
+fig, ax1 = plt.subplots()
+color = 'tab:red'
+ax1.plot(cost_list, color=color)
+ax1.set_xlabel('epoch', color=color)
+ax1.set_ylabel('Cost', color=color)
+ax1.tick_params(axis='y', color=color)
+
+ax2 = ax1.twinx()
+color = 'tab:blue'
+ax2.set_ylabel('accuracy', color=color)
+ax2.set_xlabel('epoch', color=color)
+ax2.plot( accuracy_list, color=color)
+ax2.tick_params(axis='y', color=color)
+fig.tight_layout()
+
+plot_channels(model.state_dict()['cnn1.weight'])
+plot_channels(model.state_dict()['cnn2.weight'])
+
+show_data(train_dataset[1])
+
+out = model.activations(train_dataset[1][0].view(1, 1, IMAGE_SIZE, IMAGE_SIZE))
+plot_activations(out[0], number_rows=4, name="Output after the 1st CNN")
+plot_activations(out[1], number_rows=4, name="Output after the 1st Relu")
+plot_activations(out[2], number_rows=32 // 4, name="Output after the 2nd CNN")
+plot_activations(out[3], number_rows=4, name="Output after the 2nd Relu")
+
+show_data(train_dataset[2])
+out = model.activations(train_dataset[2][0].view(1, 1, IMAGE_SIZE, IMAGE_SIZE))
+plot_activations(out[0], number_rows=4, name="Output after the 1st CNN")
+plot_activations(out[1], number_rows=4, name="Output after the 1st Relu")
+plot_activations(out[2], number_rows=32 // 4, name="Output after the 2nd CNN")
+plot_activations(out[3], number_rows=4, name="Output after the 2nd Relu")
+
+count = 0
+for x, y in torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=1):
+    z = model(x)
+    _, yhat = torch.max(z, 1)
+    if yhat != y:
+        show_data((x, y))
+        plt.show()
+        print("yhat: ",yhat)
+        count += 1
+    if count >= 5:
+        break
+
+"""# Convolutional Neural Network with Batch-Normalization"""
+
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as dsets
+import matplotlib.pylab as plt
+import numpy as np
+
+IMAGE_SIZE = 16
+def show_data(data_sample):
+  plt.imshow(data_sample[0].numpy().reshape(IMAGE_SIZE, IMAGE_SIZE), cmap='gray')
+  plt.title('y = '+ str(data_sample[1]))
+
+composed = transforms.Compose([transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), transforms.ToTensor()])
+train_dataset = dsets.MNIST(root='./data', train=True, download=True, transform=composed)
+validation_dataset = dsets.MNIST(root='./data', train=False, download=True, transform=composed)
+
+class CNN(nn.Module):
+  def __init__(self,out_1=16,out_2=32):
+    super(CNN,self).__init__()
+    self.cnn1 = nn.Conv2d(in_channels=1,out_channels=out_1,kernel_size=5,padding=2)
+    self.maxpool1 = nn.MaxPool2d(kernel_size=2)
+    self.cnn2 = nn.Conv2d(in_channels=out_1,out_channels=out_2,kernel_size=5,stride=1,padding=2)
+    self.maxpool2=nn.MaxPool2d(kernel_size=2)
+    self.fc1 = nn.Linear(out_2*4*4,10)
+
+  def forward(self,x):
+    x = self.cnn1(x)
+    x = torch.relu(x)
+    x = self.maxpool1(x)
+    x = self.cnn2(x)
+    x = torch.relu(x)
+    x = self.maxpool2(x)
+    x = x.view(x.size(0), -1)
+    x = self.fc1(x)
+    return x
+
+class CNN_batch(nn.Module):
+  def __init__(self,out_1=16,out_2=32,number_of_classes=10):
+    super(CNN_batch,self).__init__()
+    self.cnn1 = nn.Conv2d(in_channels=1,out_channels=out_1,kernel_size=5,padding=2)
+    self.conv1_bn = nn.BatchNorm2d(out_1)
+    self.maxpool1 = nn.MaxPool2d(kernel_size=2)
+
+    self.cnn2 = nn.Conv2d(in_channels =out_1,out_channels=out_2,kernel_size=5,stride=1,padding=2)
+    self.conv2_bn = nn.BatchNorm2d(out_2)
+    self.maxpool2 = nn.MaxPool2d(kernel_size=2)
+
+    self.fc1 = nn.Linear(out_2*4*4,number_of_classes)
+    self.bn_fc1 = nn.BatchNorm1d(10)
+
+  def forward(self,x):
+    x = self.cnn1(x)
+    x = self.conv1_bn(x)
+    x = torch.relu(x)
+    x = self.maxpool1(x)
+    x = self.cnn2(x)
+    x = self.conv2_bn(x)
+    x = torch.relu(x)
+    x = self.maxpool2(x)
+    x = x.view(x.size(0),-1)
+    x = self.fc1(x)
+    x = self.bn_fc1(x)
+    return x
+
+def train_model(model,train_loader,validation_loader,optimizer,n_epochs=4):
+  N_test = len(validation_dataset)
+  accuracy_list = []
+  loss_list = []
+  for epoch in range(n_epochs):
+    for x,y in train_loader:
+      model.train()
+      optimizer.zero_grad()
+      z = model(x)
+      loss = criterion(z,y)
+      loss.backward()
+      optimizer.step()
+      loss_list.append(loss.data)
+
+    correct = 0
+
+    for x_test,y_test in validation_loader:
+      model.eval()
+      z = model(x_test)
+      _,yhat = torch.max(z.data,1)
+      correct += (yhat == y_test).sum().item()
+    accuracy = correct / N_test
+    accuracy_list.append(accuracy)
+  return accuracy_list, loss_list
+
+model = CNN(out_1=16, out_2=32)
+criterion = nn.CrossEntropyLoss()
+learning_rate = 0.1
+optimizer = torch.optim.SGD(model.parameters(), lr = learning_rate)
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=100)
+validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=5000)
+
+model_batch=CNN_batch(out_1=16, out_2=32)
+criterion = nn.CrossEntropyLoss()
+learning_rate = 0.1
+optimizer = torch.optim.SGD(model_batch.parameters(), lr = learning_rate)
+
+# Train the model
+accuracy_list_normal, loss_list_normal=train_model(model=model,n_epochs=10,train_loader=train_loader,validation_loader=validation_loader,optimizer=optimizer)
+accuracy_list_batch, loss_list_batch=train_model(model=model_batch,n_epochs=10,train_loader=train_loader,validation_loader=validation_loader,optimizer=optimizer)
+
+plt.plot(loss_list_normal, 'b',label='loss normal cnn ')
+plt.plot(loss_list_batch,'r',label='loss batch cnn')
+plt.xlabel('iteration')
+plt.title("loss")
+plt.legend()
+
+plt.plot(accuracy_list_normal, 'b',label=' normal CNN')
+plt.plot(accuracy_list_batch,'r',label=' CNN with Batch Norm')
+plt.xlabel('Epoch')
+plt.title("Accuracy ")
+plt.legend()
+plt.show()
+
+"""# Convolutional Neural Network for Anime Image Classification"""
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader,Dataset
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import os
+import zipfile
+from PIL import Image
+
+import io
+import requests
+
+def load_images_from_zip(zip_file):
+  with zipfile.ZipFile(zip_file,'r') as zip_ref:
+    images = {'anastasia': [], 'takao': []}
+    for file_name in zip_ref.namelist():
+      if file_name.startswith('anastasia') and file_name.endswith('.jpg'):
+        with zip_ref.open(file_name) as file:
+          img = Image.open(file).convert('RGB')
+          images['anastasia'].append(np.array(img))
+      elif file_name.startswith('takao') and file_name.endswith('.jpg'):
+        with zip_ref.open(file_name) as file:
+          img = Image.open(file).convert('RGB')
+          images['takao'].append(np.array(img))
+  return images
+
+zip_file_url = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/xZQHOyN8ONT92kH-ASb4Pw/data.zip'
+response = requests.get(zip_file_url)
+zip_file_bytes = io.BytesIO(response.content)
+
+images = load_images_from_zip(zip_file_bytes)
+
+print("Number of images of Anastasia:", len(images['anastasia']))
+print("Number of images of Takao:", len(images['takao']))
+
+def plot_images(images,title):
+  fig,axes = plt.subplots(5,10,figsize=(10,5))
+  fig.suptitle(title,fontsize=16)
+  axes = axes.flatten()
+  for img,ax in zip(images,axes):
+    ax.imshow(img)
+    ax.axis('off')
+  plt.tight_layout()
+  plt.show()
+
+plot_images(images['anastasia'], 'Anastasia Images')
+plot_images(images['takao'], 'Takao Images')
+
+class AnimeDataset(Dataset):
+  def __init__(self,images,transform=None,classes=None):
+    self.images = []
+    self.labels = []
+    self.transform = transform
+    self.classes = classes
+
+    for label,class_name in enumerate(self.classes):
+      for img in images[class_name]:
+        self.images.append(img)
+        self.labels.append(label)
+
+  def __len__(self):
+    return len(self.images)
+
+  def __getitem__(self,idx):
+    image = Image.fromarray(self.images[idx])
+    label = self.labels[idx]
+
+    if self.transform:
+      image = self.transform(image)
+    return image,label
+
+transform = transforms.Compose([
+  transforms.Resize((64, 64)),
+  transforms.ToTensor(),
+  transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+dataset = AnimeDataset(images, transform=transform, classes=['anastasia', 'takao'])
+
+from sklearn.model_selection import train_test_split
+from torch.utils.data.sampler import SubsetRandomSampler
+
+seed = 42
+np.random.seed(seed)
+torch.manual_seed(seed)
+
+indices = list(range(len(dataset)))
+train_indices, val_indices = train_test_split(indices, test_size=0.2, random_state=seed)
+train_sampler = SubsetRandomSampler(train_indices)
+val_sampler = SubsetRandomSampler(val_indices)
+
+train_loader = DataLoader(dataset,batch_size=8,sampler=train_sampler)
+val_loader = DataLoader(dataset,batch_size=20,sampler=val_sampler)
+print("Train size:", len(train_indices))
+print("Validation size:", len(val_indices))
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+class AnimeCNN(nn.Module):
+  def __init__(self):
+    super(AnimeCNN,self).__init__()
+    self.conv1 = nn.Conv2d(3,32,3,1,padding=1)
+    self.conv2 = nn.Conv2d(32,64,3,1,padding=1)
+    self.pool = nn.MaxPool2d(2,2)
+    self.fc1 = nn.Linear(64*16*16,128)
+    self.fc2 = nn.Linear(128,2)
+
+  def forward(self,x):
+    x = self.pool(F.relu(self.conv1(x)))
+    x = self.pool(F.relu(self.conv2(x)))
+    x = x.view(-1, 64 * 16 * 16)
+    x = F.relu(self.fc1(x))
+    x = self.fc2(x)
+    return x
+model = AnimeCNN()
+input_tensor = torch.randn(1, 3, 64, 64)
+
+def print_size(module, input, output):
+  print(f"{module.__class__.__name__} output size: {output.size()}")
+
+hooks = []
+for layer in model.children():
+  hook = layer.register_forward_hook(print_size)
+  hooks.append(hook)
+
+with torch.no_grad():
+  output = model(input_tensor)
+
+for hook in hooks:
+    hook.remove()
+
+import torch.optim as optim
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(),lr=0.001)
+
+import matplotlib.pyplot as plt
+import torch
+
+# Training loop
+num_epochs = 5
+train_losses = []
+val_losses = []
+
+for epoch in range(num_epochs):
+  model.train()
+  running_loss = 0.0
+  for i,data in enumerate(train_loader, 0):
+    inputs , labels = data
+    optimizer.zero_grad()
+    outputs = model(inputs)
+    loss = criterion(outputs,labels)
+    loss.backward()
+    optimizer.step()
+    running_loss += loss.item()
+
+  train_loss = running_loss / len(train_loader)
+  train_losses.append(train_loss)
+
+  model.eval()
+  val_loss = 0.0
+
+  with torch.no_grad():
+    for data in val_loader:
+      inputs , labels = data
+      outputs = model(inputs)
+      loss = criterion(outputs,labels)
+      val_loss += loss.item()
+  val_loss = val_loss / len(val_loader)
+  val_losses.append(val_loss)
+  print(f'Epoch {epoch + 1}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+print('Finished Training')
+
+plt.figure(figsize=(10, 5))
+plt.plot(train_losses, label='Training Loss')
+plt.plot(val_losses, label='Validation Loss', linestyle='--')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.grid(True)
+plt.title('Training and Validation Loss')
+plt.show()
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+#要用img/2 + 0.5是因為transform = transforms.Compose([transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+def imshow(img,ax):
+  img = img/2+0.5
+  npimg = img.numpy()
+  ax.imshow(np.transpose(npimg, (1, 2, 0))) #圖片維度 把維度從 (C, H, W) 轉成 (H, W, C)。
+  ax.axis('off')
+
+model.eval()
+data_iter = iter(val_loader)
+images, labels = next(data_iter)
+outputs = model(images)
+_, predicted = torch.max(outputs, 1)
+
+num_images = len(images)
+num_cols = 10
+num_rows = 2
+
+fig,axs = plt.subplots(num_rows,num_cols*2,figsize=(20, num_rows))
+for idx in range(num_images):
+  row = idx // num_cols
+  col = (idx % num_cols) * 2
+  imshow(images[idx].cpu(), axs[row, col])
+  axs[row,col+1].text(0.5,0.5,f"Actual: {labels[idx].item()}\nPredicted: {predicted[idx].item()}",horizontalalignment='center', verticalalignment='center', fontsize=12)
+  axs[row, col + 1].axis('off')
+
+for idx in range(num_images, num_rows * num_cols):
+  row = idx // num_cols
+  col = (idx % num_cols) * 2
+  axs[row, col].axis('off')
+  axs[row, col + 1].axis('off')
+
+plt.tight_layout()
+plt.show()
+
+correct = 0
+total = 0
+
+with torch.no_grad():
+  for data in val_loader:
+    images,labels = data
+    outputs = model(images)
+    _,predicted = torch.max(outputs.data, 1)
+    total += labels.size(0)
+    correct += (predicted == labels).sum().item()
+    print(f'correct: {correct}, total: {total}')
+print(f'Validation Accuracy: {100 * correct / total:.2f}%')
 
